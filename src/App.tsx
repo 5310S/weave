@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Miner from './Miner';
 import './App.scss';
 import WebSocket from './WebSocket'
 
