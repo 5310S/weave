@@ -6,7 +6,7 @@ const WebSocketClient: React.FC = () => {
   const [input, setInput] = useState<string>("");
 
   useEffect(() => {
-    const ws = new WebSocket("ws://82.25.86.57:8080");
+    const ws = new WebSocket("ws://82.25.86.57:8081");
     setSocket(ws);
 
     ws.onopen = () => {
