@@ -3,8 +3,8 @@ import './App.scss';
 import WebSocket from './WebSocket'
 
 const App: React.FC = () => {
-    const [status, setStatus] = useState<string>('Connecting to node...');
-    const [blockCount, setBlockCount] = useState<number>(0);
+    // const [status, setStatus] = useState<string>('Connecting to node...');
+    // const [blockCount, setBlockCount] = useState<number>(0);
 
     return (
         <div className="app-container">
@@ -17,8 +17,8 @@ const App: React.FC = () => {
             <WebSocket/>
         
             <div className="status-container">
-                <p className="status-text">Status: {status}</p>
-                <p className="block-count">Blocks Mined: {blockCount}</p>
+                {/* <p className="status-text">Status: {status}</p> */}
+                {/* <p className="block-count">Blocks Mined: {blockCount}</p> */}
             </div>
         </div>
     );
