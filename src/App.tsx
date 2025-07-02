@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Miner from './Miner';
 import './App.scss';
+import WebSocket from './WebSocket'
 
 const App: React.FC = () => {
     const [status, setStatus] = useState<string>('Connecting to node...');
@@ -9,11 +10,13 @@ const App: React.FC = () => {
     return (
         <div className="app-container">
             <h1 className="app-title">Smartphone Crypto Miner</h1>
-            <Miner
+            {/* <Miner
                 nodeUrl="ws://your-node-ip:3000/ws"
                 onStatusChange={setStatus}
                 onBlockMined={() => setBlockCount(count => count + 1)}
-            />
+            /> */}
+            <WebSocket/>
+        
             <div className="status-container">
                 <p className="status-text">Status: {status}</p>
                 <p className="block-count">Blocks Mined: {blockCount}</p>
