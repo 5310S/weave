@@ -6,45 +6,52 @@ const WebSocketClient: React.FC = () => {
   const [input, setInput] = useState<string>("");
   const [status, setStatus] = useState<string>("Connecting...");
 
+  const addDebug = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setMessages((prev) => [...prev, `[${timestamp}] ${msg}`]);
+  };
+
   useEffect(() => {
     const ws = new WebSocket("ws://82.25.86.57:8081");
     setSocket(ws);
 
     ws.onopen = () => {
       setStatus("WebSocket connected");
-      setMessages((msgs) => [...msgs, "WebSocket connected"]);
+      addDebug("WebSocket onopen event fired");
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      setMessages((msgs) => [...msgs, `Received: ${event.data}`]);
+      addDebug(`onmessage: ${event.data}`);
     };
 
-    ws.onclose = () => {
-      setStatus("WebSocket closed");
-      setMessages((msgs) => [...msgs, "WebSocket closed"]);
+    ws.onclose = (event: CloseEvent) => {
+      setStatus(`WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
+      addDebug(`onclose event fired: code=${event.code}, reason=${event.reason}`);
     };
 
-    ws.onerror = (err) => {
+    ws.onerror = (event) => {
       setStatus("WebSocket error");
-      setMessages((msgs) => [...msgs, "WebSocket error"]);
+      addDebug(`onerror event fired: ${JSON.stringify(event)}`);
+      addDebug(`readyState: ${ws.readyState}`);
     };
 
     return () => {
       ws.close();
+      addDebug("WebSocket manually closed on unmount");
     };
   }, []);
 
   const sendMessage = () => {
     if (socket && input.trim() !== "") {
       socket.send(input);
-      setMessages((msgs) => [...msgs, `Sent: ${input}`]);
+      addDebug(`Sent: ${input}`);
       setInput("");
     }
   };
 
   return (
     <div style={{ padding: "1rem" }}>
-      <h2 style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>WebSocket Client</h2>
+      <h2 style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>WebSocket Client Debugger</h2>
       <div style={{ marginBottom: "0.5rem" }}>
         <strong>Status:</strong> {status}
       </div>
@@ -53,12 +60,12 @@ const WebSocketClient: React.FC = () => {
           border: "1px solid #ccc",
           padding: "0.5rem",
           marginBottom: "0.5rem",
-          height: "200px",
+          height: "300px",
           overflowY: "scroll",
           backgroundColor: "#f9f9f9",
           whiteSpace: "pre-wrap",
           fontFamily: "monospace",
-          fontSize: "0.9rem",
+          fontSize: "0.8rem",
         }}
       >
         {messages.map((msg, idx) => (
