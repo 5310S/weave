@@ -6,7 +6,7 @@ const WebSocketClient: React.FC = () => {
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const socket = new WebSocket('wss://your-public-ip-or-domain:8081');
+    const socket = new WebSocket('wss://82.25.86.57:8081');
 
     socket.onopen = () => {
       console.log('✅ WebSocket connected');
