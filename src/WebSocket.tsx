@@ -1,96 +1,64 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from 'react';
 
 const WebSocketClient: React.FC = () => {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
-  const [input, setInput] = useState<string>("");
-  const [status, setStatus] = useState<string>("Connecting...");
-
-  const addDebug = (msg: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setMessages((prev) => [...prev, `[${timestamp}] ${msg}`]);
-  };
+  const [input, setInput] = useState('');
+  const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket("wss://82.25.86.57:8081");
-    setSocket(ws);
+    const socket = new WebSocket('wss://your-public-ip-or-domain:8081');
 
-    ws.onopen = () => {
-      setStatus("WebSocket connected");
-      addDebug("WebSocket onopen event fired");
+    socket.onopen = () => {
+      console.log('✅ WebSocket connected');
     };
 
-    ws.onmessage = (event: MessageEvent) => {
-      addDebug(`onmessage: ${event.data}`);
+    socket.onmessage = (event) => {
+      console.log('📩 Message received:', event.data);
+      setMessages(prev => [...prev, event.data]);
     };
 
-    ws.onclose = (event: CloseEvent) => {
-      setStatus(`WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
-      addDebug(`onclose event fired: code=${event.code}, reason=${event.reason}`);
+    socket.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
     };
 
-    ws.onerror = (event) => {
-      setStatus("WebSocket error");
-      addDebug(`onerror event fired: ${JSON.stringify(event)}`);
-      addDebug(`readyState: ${ws.readyState}`);
+    socket.onclose = () => {
+      console.log('🔌 WebSocket disconnected');
     };
 
+    ws.current = socket;
+
+    // Cleanup on unmount
     return () => {
-      ws.close();
-      addDebug("WebSocket manually closed on unmount");
+      socket.close();
     };
   }, []);
 
   const sendMessage = () => {
-    if (socket && input.trim() !== "") {
-      socket.send(input);
-      addDebug(`Sent: ${input}`);
-      setInput("");
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(input);
+      setInput('');
     }
   };
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h2 style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>WebSocket Client Debugger</h2>
-      <div style={{ marginBottom: "0.5rem" }}>
-        <strong>Status:</strong> {status}
+    <div style={{ padding: '1rem', fontFamily: 'sans-serif' }}>
+      <h2>🧪 WebSocket Test</h2>
+      <div>
+        <input
+          type="text"
+          value={input}
+          placeholder="Type a message..."
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && sendMessage()}
+        />
+        <button onClick={sendMessage}>Send</button>
       </div>
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "0.5rem",
-          marginBottom: "0.5rem",
-          height: "300px",
-          overflowY: "scroll",
-          backgroundColor: "#f9f9f9",
-          whiteSpace: "pre-wrap",
-          fontFamily: "monospace",
-          fontSize: "0.8rem",
-        }}
-      >
-        {messages.map((msg, idx) => (
-          <div key={idx}>{msg}</div>
-        ))}
+      <div style={{ marginTop: '1rem' }}>
+        <strong>Messages:</strong>
+        <ul>
+          {messages.map((msg, i) => <li key={i}>{msg}</li>)}
+        </ul>
       </div>
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type a message"
-        style={{ padding: "0.25rem", marginRight: "0.5rem", width: "70%" }}
-      />
-      <button
-        onClick={sendMessage}
-        style={{
-          padding: "0.25rem 0.5rem",
-          backgroundColor: "#3b82f6",
-          color: "white",
-          border: "none",
-          borderRadius: "0.25rem",
-        }}
-      >
-        Send
-      </button>
     </div>
   );
 };
