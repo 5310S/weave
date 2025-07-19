@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.scss';
-import WebSocket from './WebSocket'
+
 
 const App: React.FC = () => {
     // const [status, setStatus] = useState<string>('Connecting to node...');
@@ -14,7 +14,7 @@ const App: React.FC = () => {
                 onStatusChange={setStatus}
                 onBlockMined={() => setBlockCount(count => count + 1)}
             /> */}
-            <WebSocket/>
+
         
             <div className="status-container">
                 {/* <p className="status-text">Status: {status}</p> */}
