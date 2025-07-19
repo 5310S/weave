@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface WebRTCConnectorProps {
   signalingUrl?: string;
@@ -7,48 +7,11 @@ interface WebRTCConnectorProps {
 const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://82.25.86.57:8081' }) => {
   const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
   const [dataChannel, setDataChannel] = useState<RTCDataChannel | null>(null);
-  const [ws, setWs] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<string>('Disconnected');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Set up WebSocket for signaling
-    const websocket = new WebSocket(signalingUrl);
-    setWs(websocket);
-
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-      setError(null);
-      initPeerConnection(websocket);
-    };
-
-    websocket.onmessage = (event: MessageEvent) => {
-      const signal = JSON.parse(event.data) as any; // Adjust type based on Signal enum
-      console.log('Received signal:', signal);
-      handleSignal(signal);
-    };
-
-    websocket.onclose = (event: CloseEvent) => {
-      console.log('WebSocket closed:', event.reason);
-      setConnectionStatus('Disconnected');
-      setError(event.reason || 'Connection closed unexpectedly');
-    };
-
-    websocket.onerror = (error: Event) => {
-      console.error('WebSocket error:', error);
-      setError('WebSocket connection failed—check server, IP/port, and firewall');
-    };
-
-    return () => {
-      if (peerConnection) {
-        peerConnection.close();
-      }
-      websocket.close();
-    };
-  }, [signalingUrl]);
-
-  const initPeerConnection = (websocket: WebSocket) => {
+  const initPeerConnection = useCallback((websocket: WebSocket) => {
     const config: RTCConfiguration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     };
@@ -120,9 +83,9 @@ const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://
         console.error('Error creating offer:', error);
         setError(`Offer creation failed: ${error.message}`);
       });
-  };
+  }, []);
 
-  const handleSignal = (signal: any) => {
+  const handleSignal = useCallback((signal: any) => {
     if (!peerConnection) return;
 
     if (signal.type === 'Answer') {
@@ -144,7 +107,42 @@ const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://
           setError(`ICE candidate addition failed: ${error.message}`);
         });
     }
-  };
+  }, [peerConnection]);
+
+  useEffect(() => {
+    // Set up WebSocket for signaling
+    const websocket = new WebSocket(signalingUrl);
+
+    websocket.onopen = () => {
+      console.log('WebSocket connected');
+      setError(null);
+      initPeerConnection(websocket);
+    };
+
+    websocket.onmessage = (event: MessageEvent) => {
+      const signal = JSON.parse(event.data) as any; // Adjust type based on Signal enum
+      console.log('Received signal:', signal);
+      handleSignal(signal);
+    };
+
+    websocket.onclose = (event: CloseEvent) => {
+      console.log('WebSocket closed:', event.reason);
+      setConnectionStatus('Disconnected');
+      setError(event.reason || 'Connection closed unexpectedly');
+    };
+
+    websocket.onerror = (error: Event) => {
+      console.error('WebSocket error:', error);
+      setError('WebSocket connection failed—check server, IP/port, and firewall');
+    };
+
+    return () => {
+      if (peerConnection) {
+        peerConnection.close();
+      }
+      websocket.close();
+    };
+  }, [signalingUrl, initPeerConnection, handleSignal]);
 
   const sendMessage = (msg: any) => {
     if (dataChannel && dataChannel.readyState === 'open') {
