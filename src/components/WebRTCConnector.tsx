@@ -1,22 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface WebRTCConnectorProps {
   signalingUrl?: string;
 }
 
 const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://82.25.86.57:8081' }) => {
-  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
   const [dataChannel, setDataChannel] = useState<RTCDataChannel | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<string>('Disconnected');
   const [error, setError] = useState<string | null>(null);
+
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
   const initPeerConnection = useCallback((websocket: WebSocket) => {
     const config: RTCConfiguration = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     };
     const pc = new RTCPeerConnection(config);
-    setPeerConnection(pc);
+    peerConnectionRef.current = pc;
 
     // Handle ICE candidates
     pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -86,7 +87,8 @@ const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://
   }, []);
 
   const handleSignal = useCallback((signal: any) => {
-    if (!peerConnection) return;
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
 
     if (signal.type === 'Answer') {
       console.log('Setting remote description (answer)');
@@ -94,20 +96,20 @@ const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://
         type: 'answer',
         sdp: signal.sdp, // Adjust based on your Signal structure
       });
-      peerConnection.setRemoteDescription(desc)
+      pc.setRemoteDescription(desc)
         .catch((error: any) => {
           console.error('Error setting remote description:', error);
           setError(`Remote description failed: ${error.message}`);
         });
     } else if (signal.type === 'Candidate') {
       console.log('Adding ICE candidate');
-      peerConnection.addIceCandidate(signal.candidate)
+      pc.addIceCandidate(signal.candidate)
         .catch((error: any) => {
           console.error('Error adding ICE candidate:', error);
           setError(`ICE candidate addition failed: ${error.message}`);
         });
     }
-  }, [peerConnection]);
+  }, []);
 
   useEffect(() => {
     // Set up WebSocket for signaling
@@ -137,8 +139,10 @@ const WebRTCConnector: React.FC<WebRTCConnectorProps> = ({ signalingUrl = 'ws://
     };
 
     return () => {
-      if (peerConnection) {
-        peerConnection.close();
+      const pc = peerConnectionRef.current;
+      if (pc) {
+        pc.close();
+        peerConnectionRef.current = null;
       }
       websocket.close();
     };
