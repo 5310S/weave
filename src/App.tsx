@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.scss';
-import WebRTCConnector from './components/WebRTCConnector';
+
 
 
 const App: React.FC = () => {
@@ -15,7 +15,7 @@ const App: React.FC = () => {
                 onStatusChange={setStatus}
                 onBlockMined={() => setBlockCount(count => count + 1)}
             /> */}
-                <WebRTCConnector/>
+
         
             <div className="status-container">
                 {/* <p className="status-text">Status: {status}</p> */}
