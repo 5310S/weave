@@ -12,7 +12,7 @@ final class EncryptionTests: XCTestCase {
         XCTAssertEqual(data1, data2)
     }
 
-    func testEncryptDecryptRoundTrip() throws {
+    func testEncryptDecryptRoundTrip() async throws {
         let aliceNode = P2PNode()
         let bobNode = P2PNode()
 
@@ -24,8 +24,8 @@ final class EncryptionTests: XCTestCase {
                                  latitude: 0, longitude: 0)
 
         let message = "Hello Bob".data(using: .utf8)!
-        let encrypted = try aliceNode.send(message, to: bobPeer)
-        let decrypted = try bobNode.receive(encrypted, from: alicePeer)
+        let encrypted = try await aliceNode.send(message, to: bobPeer)
+        let decrypted = try await bobNode.receive(encrypted, from: alicePeer)
         XCTAssertEqual(message, decrypted)
     }
 }

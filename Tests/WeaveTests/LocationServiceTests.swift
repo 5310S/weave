@@ -24,6 +24,9 @@ final class LocationServiceTests: XCTestCase {
         let updated = manager.peer(id: peer.id)
         XCTAssertEqual(updated?.latitude, 50.0)
         XCTAssertEqual(updated?.longitude, 8.0)
+
+        service.stop()
+        XCTAssertNil(service.onLocationUpdate)
     }
 
     func testErrorPropagation() {
@@ -51,6 +54,27 @@ final class LocationServiceTests: XCTestCase {
         service.locationManager(CLLocationManager(), didFailWithError: error)
 
         wait(for: [delegateExpectation, closureExpectation], timeout: 1.0)
+        service.stop()
+    }
+
+    func testStopClearsDelegateAndClosures() {
+        let service = LocationService()
+
+        class Delegate: LocationServiceDelegate {
+            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+            func locationService(_ service: LocationService, didFailWithError error: Error) {}
+        }
+
+        let delegate = Delegate()
+        service.delegate = delegate
+        service.onLocationUpdate = { _, _ in }
+        service.onError = { _ in }
+
+        service.stop()
+
+        XCTAssertNil(service.delegate)
+        XCTAssertNil(service.onLocationUpdate)
+        XCTAssertNil(service.onError)
     }
 }
 #endif

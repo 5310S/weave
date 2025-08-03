@@ -1,5 +1,9 @@
 import Foundation
 
+enum GeoHashError: Error {
+    case invalidCharacter(Character)
+}
+
 /// Utility for encoding geographic coordinates into a geohash string.
 /// Geohashes compactly represent latitude/longitude pairs and can be used
 /// for coarse spatial grouping, e.g. when indexing peers in a distributed
@@ -61,13 +65,15 @@ struct GeoHash {
     /// Decodes a geohash string back into a latitude/longitude pair.
     /// - Parameter hash: The geohash string to decode.
     /// - Returns: A tuple containing the latitude and longitude at the center of the geohash cell.
-    static func decode(_ hash: String) -> (latitude: Double, longitude: Double) {
+    static func decode(_ hash: String) throws -> (latitude: Double, longitude: Double) {
         var latInterval = (-90.0, 90.0)
         var lonInterval = (-180.0, 180.0)
         var isEven = true
 
         for character in hash {
-            guard let value = decodeMap[character] else { continue }
+            guard let value = decodeMap[character] else {
+                throw GeoHashError.invalidCharacter(character)
+            }
             for mask in [16, 8, 4, 2, 1] {
                 if isEven {
                     let mid = (lonInterval.0 + lonInterval.1) / 2
