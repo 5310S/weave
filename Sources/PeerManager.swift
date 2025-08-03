@@ -99,7 +99,9 @@ final class PeerManager: @unchecked Sendable {
     /// Updates a peer's geographic location if it exists in the manager.
     func updateLocation(id: UUID, latitude: Double, longitude: Double) {
         queue.sync(flags: .barrier) {
-            guard var peer = peerIndex[id] else { return }
+            guard var peer = peerIndex[id],
+                  (-90.0...90.0).contains(latitude),
+                  (-180.0...180.0).contains(longitude) else { return }
             let oldKey = peer.geohash
             peer.latitude = latitude
             peer.longitude = longitude
