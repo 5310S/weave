@@ -135,6 +135,14 @@ class PeerManager {
         return Array(sorted.prefix(limit))
     }
 
+    /// Returns up to `limit` most recently seen peers, excluding any that are blocked.
+    func recentPeers(limit: Int) -> [Peer] {
+        let sorted = peerIndex.values
+            .filter { !blocked.contains($0.id) }
+            .sorted { $0.lastSeen > $1.lastSeen }
+        return Array(sorted.prefix(limit))
+    }
+
     /// Returns up to `limit` peers within `radius` kilometers of the given peer,
     /// ranked first by number of matching attribute key/value pairs and then by
     /// proximity (closest first).

@@ -80,3 +80,7 @@ manager.add(stalePeer)
 print("Total peers before pruning: \(manager.allPeers().count)")
 manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
 print("Peers after pruning stale entries: \(manager.allPeers().count)")
+
+// Fetch the most recently seen peers
+let recent = manager.recentPeers(limit: 2)
+print("Most recently seen peers: \(recent.count)")

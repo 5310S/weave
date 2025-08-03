@@ -249,4 +249,19 @@ final class PeerManagerTests: XCTestCase {
         let results = manager.peers(inGeohash: prefix)
         XCTAssertEqual(results, [sf])
     }
+
+    func testRecentPeersReturnsMostRecentFirst() {
+        let manager = PeerManager()
+        let older = Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -3600))
+        let newer = Peer(latitude: 0.0, longitude: 0.0)
+        let blocked = Peer(latitude: 0.0, longitude: 0.0)
+
+        manager.add(older)
+        manager.add(newer)
+        manager.add(blocked)
+        manager.block(id: blocked.id)
+
+        let results = manager.recentPeers(limit: 5)
+        XCTAssertEqual(results, [newer, older])
+    }
 }
