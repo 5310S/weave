@@ -418,4 +418,31 @@ final class PeerManagerTests: XCTestCase {
         group.wait()
         XCTAssertEqual(manager.allPeers().count, 100)
     }
+
+    /// Invokes `nearestPeers` while other threads mutate the manager to ensure thread safety.
+    func testNearestPeersThreadSafetyDuringMutation() {
+        let manager = PeerManager()
+        let queue = DispatchQueue.global(qos: .default)
+        let group = DispatchGroup()
+
+        for _ in 0..<100 {
+            group.enter()
+            queue.async {
+                let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+                manager.add(peer)
+                group.leave()
+            }
+
+            group.enter()
+            queue.async {
+                _ = manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5)
+                group.leave()
+            }
+        }
+
+        group.wait()
+
+        XCTAssertEqual(manager.allPeers().count, 100)
+        XCTAssertLessThanOrEqual(manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5).count, 5)
+    }
 }

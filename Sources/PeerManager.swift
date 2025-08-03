@@ -247,21 +247,21 @@ final class PeerManager: @unchecked Sendable {
                       longitude: Double,
                       limit: Int,
                       matching filters: [String: String] = [:]) -> [Peer] {
+        queue.sync {
+            let candidates = peerIndex.values
+                .filter { peer in
+                    !blocked.contains(peer.id) &&
+                    filters.allSatisfy { key, value in peer.attributes[key] == value }
+                }
+                .map { peer -> (peer: Peer, distance: Double) in
+                    let dist = distance(from: (latitude, longitude),
+                                        to: (peer.latitude, peer.longitude))
+                    return (peer, dist)
+                }
+                .sorted { $0.distance < $1.distance }
 
-        let candidates = peerIndex.values
-            .filter { peer in
-                !blocked.contains(peer.id) &&
-                filters.allSatisfy { key, value in peer.attributes[key] == value }
-            }
-            .map { peer -> (peer: Peer, distance: Double) in
-                let dist = distance(from: (latitude, longitude),
-                                    to: (peer.latitude, peer.longitude))
-                return (peer, dist)
-            }
-            .sorted { $0.distance < $1.distance }
-
-        return candidates.prefix(limit).map { $0.peer }
-
+            return candidates.prefix(limit).map { $0.peer }
+        }
     }
 
     /// Returns up to `limit` most recently seen peers, excluding any that are blocked.
