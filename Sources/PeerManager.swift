@@ -47,6 +47,17 @@ actor PeerManager {
 
     /// Adds or updates a peer in the manager.
     func add(_ peer: Peer) {
+        if let existing = peerIndex[peer.id] {
+            let oldKey = existing.geohash
+            if var bucket = geohashIndex[oldKey] {
+                bucket.remove(peer.id)
+                if bucket.isEmpty {
+                    geohashIndex.removeValue(forKey: oldKey)
+                } else {
+                    geohashIndex[oldKey] = bucket
+                }
+            }
+        }
         peerIndex[peer.id] = peer
         let key = peer.geohash
         var bucket = geohashIndex[key] ?? Set<UUID>()

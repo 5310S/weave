@@ -469,4 +469,19 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(await manager.allPeers().count, 100)
         XCTAssertLessThanOrEqual(await manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5).count, 5)
     }
+
+    func testReaddingPeerReindexesGeohash() async {
+        let manager = PeerManager()
+        let id = UUID()
+        let first = try! Peer(id: id, latitude: 37.0, longitude: -122.0)
+        await manager.add(first)
+        let oldHash = first.geohash
+
+        let second = try! Peer(id: id, latitude: 40.0, longitude: -74.0)
+        await manager.add(second)
+        let newHash = second.geohash
+
+        XCTAssertTrue(await manager.peers(inGeohash: oldHash).isEmpty)
+        XCTAssertEqual(await manager.peers(inGeohash: newHash), [second])
+    }
 }
