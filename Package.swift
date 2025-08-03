@@ -10,12 +10,15 @@ let package = Package(
     ],
     dependencies: [
         // TODO: Add libp2p dependency when available.
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "2.7.0")
     ],
     targets: [
         // Targets define modules or test suites.
         .executableTarget(
             name: "weave",
-            dependencies: []),
+            dependencies: [
+                .product(name: "Crypto", package: "swift-crypto")
+            ]),
         .testTarget(
             name: "WeaveTests",
             dependencies: ["weave"])
