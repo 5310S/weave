@@ -175,6 +175,25 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(restored.peer(id: peer.id)?.lastSeen, timestamp)
     }
 
+    func testBlockedPeersPersistThroughStore() throws {
+        let manager = PeerManager()
+        let peer = Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(peer)
+        manager.block(id: peer.id)
+
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let store = PeerStore(url: tmp)
+        try manager.save(to: store)
+
+        let restored = PeerManager()
+        try restored.load(from: store)
+
+        XCTAssertEqual(restored.allPeers().count, 0)
+        restored.unblock(id: peer.id)
+        XCTAssertEqual(restored.allPeers(), [peer])
+    }
+
     func testBlockedPeersAreExcludedFromQueries() {
         let manager = PeerManager()
         let first = Peer(latitude: 0.0, longitude: 0.0)

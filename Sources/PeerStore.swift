@@ -1,19 +1,34 @@
 import Foundation
 
-/// Persists and restores peers to and from disk using JSON encoding.
+/// Persists and restores peers (and the block list) to and from disk using JSON
+/// encoding.
 struct PeerStore {
     let url: URL
 
-    /// Saves the provided peers to disk, overwriting any existing file.
-    func save(_ peers: [Peer]) throws {
-        let data = try JSONEncoder().encode(peers)
+    private struct Snapshot: Codable {
+        var peers: [Peer]
+        var blocked: [UUID]
+    }
+
+    /// Saves the provided peers and blocked IDs to disk, overwriting any
+    /// existing file.
+    func save(peers: [Peer], blocked: [UUID]) throws {
+        let snapshot = Snapshot(peers: peers, blocked: blocked)
+        let data = try JSONEncoder().encode(snapshot)
         try data.write(to: url, options: .atomic)
     }
 
-    /// Loads peers from disk, returning an empty array if the file does not exist.
-    func load() throws -> [Peer] {
-        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+    /// Loads peers and blocked IDs from disk. Returns empty collections if the
+    /// file does not exist. For backward compatibility with older save formats,
+    /// a plain array of peers can still be decoded.
+    func load() throws -> (peers: [Peer], blocked: [UUID]) {
+        guard FileManager.default.fileExists(atPath: url.path) else { return ([], []) }
         let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode([Peer].self, from: data)
+        if let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            return (snapshot.peers, snapshot.blocked)
+        } else {
+            let peers = try JSONDecoder().decode([Peer].self, from: data)
+            return (peers, [])
+        }
     }
 }

@@ -29,7 +29,6 @@ if manager.connect(to: movingPeer.id) {
 manager.block(id: laPeer.id)
 nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)
 print("Peers after blocking LA user: \(nearbyPeers.count)")
-manager.unblock(id: laPeer.id)
 
 // Update the peer's location to New York
 manager.updateLocation(id: movingPeer.id, latitude: 40.7128, longitude: -74.0060)
@@ -66,7 +65,9 @@ let store = PeerStore(url: storeURL)
 try? manager.save(to: store)
 let restored = PeerManager()
 try? restored.load(from: store)
-print("Restored \(restored.allPeers().count) peer(s) from disk")
+print("Restored \(restored.allPeers().count) peer(s) from disk (blocked peers excluded)")
+restored.unblock(id: laPeer.id)
+print("After unblocking LA user post-restore: \(restored.allPeers().count) peer(s)")
 
 // Demonstrate pruning stale peers
 let stalePeer = Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))

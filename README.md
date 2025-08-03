@@ -9,7 +9,7 @@ iOS client. The current prototype includes:
 - `PeerManager` supports peer removal, updates to network address, location and attribute metadata (including individual attribute changes), pruning of stale peers by last-seen time, and blocking/unblocking of peers.
 - `PeerManager` can rank nearby peers by shared attribute matches.
 - `PeerManager` provides a `connect(to:)` helper that refreshes last-seen timestamps while respecting block lists.
-- `PeerStore` persists known peers to disk and restores them on launch.
+- `PeerStore` persists known peers and blocked IDs to disk and restores them on launch.
 - Sample command-line entry point demonstrating peer filtering, nearest-peer querying, updates (including attribute tweaks), blocking and pruning.
 - Unit tests covering radius-based, proximity-sorted, attribute-filtered, matching, update, blocking and pruning logic.
 

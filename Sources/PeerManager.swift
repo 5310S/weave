@@ -172,15 +172,15 @@ class PeerManager {
         return earthRadiusKm * c
     }
 
-    /// Persists all known peers using the provided store.
+    /// Persists all known peers and blocked IDs using the provided store.
     func save(to store: PeerStore) throws {
-        try store.save(Array(peerIndex.values))
+        try store.save(peers: Array(peerIndex.values), blocked: Array(blocked))
     }
 
-    /// Loads peers from the provided store, replacing any existing peers.
+    /// Loads peers (and blocked IDs) from the provided store, replacing any existing data.
     func load(from store: PeerStore) throws {
-        let peers = try store.load()
-        peerIndex = Dictionary(uniqueKeysWithValues: peers.map { ($0.id, $0) })
-        blocked = blocked.filter { peerIndex[$0] != nil }
+        let snapshot = try store.load()
+        peerIndex = Dictionary(uniqueKeysWithValues: snapshot.peers.map { ($0.id, $0) })
+        blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
     }
 }
