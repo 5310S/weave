@@ -1,4 +1,5 @@
 import Foundation
+import Crypto
 
 #if canImport(LibP2P)
 import LibP2P
@@ -37,9 +38,18 @@ final class P2PNode {
     /// Indicates whether the node is actively running.
     private(set) var isRunning: Bool = false
 
-    init(bootstrapPeers: [String] = [], hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() }) {
+
+    /// Private key used for Curve25519 key agreement.
+    private let privateKey: Curve25519.KeyAgreement.PrivateKey
+    /// Public key that can be shared with peers.
+    let publicKey: Data
+
+    init(bootstrapPeers: [String] = []) {
         self.bootstrapPeers = bootstrapPeers
-        self.hostBuilder = hostBuilder
+        let pair = Encryption.generateKeyPair()
+        self.privateKey = pair.privateKey
+        self.publicKey = pair.publicKey
+
     }
 
     /// Starts the networking stack by creating a libp2p host, performing
@@ -65,6 +75,31 @@ final class P2PNode {
         host?.stop()
         host = nil
         isRunning = false
+    }
+
+    /// Encrypts `message` for the given peer using a shared secret.
+    func send(_ message: Data, to peer: Peer) throws -> Data {
+        let key = try sharedKey(with: peer)
+        return try Encryption.encrypt(message, using: key)
+    }
+
+    /// Decrypts data received from the given peer using the shared secret.
+    func receive(_ data: Data, from peer: Peer) throws -> Data {
+        let key = try sharedKey(with: peer)
+        return try Encryption.decrypt(data, using: key)
+    }
+
+    /// Derives a symmetric key from our private key and the peer's public key.
+    private func sharedKey(with peer: Peer) throws -> SymmetricKey {
+        guard let base64 = peer.attributes["publicKey"],
+              let data = Data(base64Encoded: base64) else {
+            throw P2PError.missingPeerPublicKey
+        }
+        return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: data)
+    }
+
+    enum P2PError: Error {
+        case missingPeerPublicKey
     }
 }
 
