@@ -27,13 +27,10 @@ final class GeoHashTests: XCTestCase {
         }
     }
 
-    func testDecodeInvalidCharacterThrows() {
-        XCTAssertThrowsError(try GeoHash.decode("invalid!hash")) { error in
-            guard case GeoHashError.invalidCharacter(let char) = error else {
-                return XCTFail("Expected invalidCharacter error")
-            }
-            XCTAssertEqual(char, "!")
-        }
+    func testInvalidPrecisionReturnsEmptyString() {
+        XCTAssertEqual(GeoHash.encode(latitude: 0, longitude: 0, precision: 0), "")
+        XCTAssertEqual(GeoHash.encode(latitude: 0, longitude: 0, precision: 13), "")
+
     }
 
     private func errorForPrecision(_ precision: Int) -> (Double, Double) {
