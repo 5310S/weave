@@ -349,9 +349,9 @@ final class PeerManagerTests: XCTestCase {
 
     func testPeersInGeohashPrefixWithAttributeFilter() {
         let manager = PeerManager()
-        let sfHiker = Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
-        let sfBaker = Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
-        let laHiker = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+        let sfHiker = try! Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
+        let sfBaker = try! Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
+        let laHiker = try! Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
         manager.add(sfHiker)
         manager.add(sfBaker)
         manager.add(laHiker)
@@ -387,7 +387,7 @@ final class PeerManagerTests: XCTestCase {
         for _ in 0..<100 {
             group.enter()
             queue.async {
-                let peer = Peer(latitude: 0.0, longitude: 0.0)
+                let peer = try! Peer(latitude: 0.0, longitude: 0.0)
                 manager.add(peer)
                 group.leave()
             }
