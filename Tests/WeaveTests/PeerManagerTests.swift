@@ -63,6 +63,42 @@ final class PeerManagerTests: XCTestCase {
 
     }
 
+    func testNearestPeersMatchesNaiveImplementation() {
+        let manager = PeerManager()
+        let originLat = 0.0
+        let originLon = 0.0
+
+        let peers = [
+            Peer(latitude: 0.0, longitude: 0.3),
+            Peer(latitude: 0.0, longitude: 0.1),
+            Peer(latitude: 0.0, longitude: -0.1),
+            Peer(latitude: 0.2, longitude: 0.0),
+            Peer(latitude: -0.2, longitude: 0.0)
+        ]
+
+        peers.forEach { manager.add($0) }
+
+        let optimized = manager.nearestPeers(to: originLat, longitude: originLon, limit: 5)
+
+        func distance(_ from: (Double, Double), _ to: (Double, Double)) -> Double {
+            let earthRadiusKm = 6371.0
+            let deltaLat = (to.0 - from.0) * Double.pi / 180
+            let deltaLon = (to.1 - from.1) * Double.pi / 180
+            let a = sin(deltaLat/2) * sin(deltaLat/2) +
+                    cos(from.0 * Double.pi / 180) * cos(to.0 * Double.pi / 180) *
+                    sin(deltaLon/2) * sin(deltaLon/2)
+            let c = 2 * atan2(sqrt(a), sqrt(1-a))
+            return earthRadiusKm * c
+        }
+
+        let naive = manager.allPeers().sorted {
+            distance((originLat, originLon), ($0.latitude, $0.longitude)) <
+            distance((originLat, originLon), ($1.latitude, $1.longitude))
+        }
+
+        XCTAssertEqual(optimized, Array(naive.prefix(5)))
+    }
+
     func testAttributeFilteringReturnsMatches() {
         let manager = PeerManager()
         let hiker = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
