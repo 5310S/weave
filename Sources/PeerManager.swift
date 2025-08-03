@@ -187,14 +187,21 @@ final class PeerManager: @unchecked Sendable {
 
 
     /// Returns peers whose geohash begins with the specified prefix. Useful for
-
     /// coarse location-based grouping using geohash bucketing.
     func peers(inGeohash prefix: String) -> [Peer] {
+        peers(inGeohash: prefix, matching: [:])
+    }
+
+    /// Returns peers whose geohash begins with the specified prefix and match
+    /// all provided attribute filters.
+    func peers(inGeohash prefix: String,
+               matching filters: [String: String] = [:]) -> [Peer] {
         queue.sync {
             peerIndex.values.filter { peer in
-                !blocked.contains(peer.id) && peer.geohash.hasPrefix(prefix)
+                !blocked.contains(peer.id) &&
+                peer.geohash.hasPrefix(prefix) &&
+                filters.allSatisfy { key, value in peer.attributes[key] == value }
             }
-
         }
     }
 
