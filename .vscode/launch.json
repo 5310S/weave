@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:weave}",
+            "name": "Debug weave",
+            "program": "${workspaceFolder:weave}/.build/debug/weave",
+            "preLaunchTask": "swift: Build Debug weave"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:weave}",
+            "name": "Release weave",
+            "program": "${workspaceFolder:weave}/.build/release/weave",
+            "preLaunchTask": "swift: Build Release weave"
+        }
+    ]
+}

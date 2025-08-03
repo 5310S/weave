@@ -2,6 +2,7 @@ import Foundation
 
 /// Manages known peers and provides basic discovery utilities.
 class PeerManager {
+
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
@@ -41,6 +42,7 @@ class PeerManager {
             .filter { $0.attributes["likes"] == userID.uuidString && !blocked.contains($0.id) }
     }
 
+
     /// Adds or updates a peer in the manager.
     func add(_ peer: Peer) {
         peerIndex[peer.id] = peer
@@ -49,6 +51,7 @@ class PeerManager {
     /// Removes a peer by id.
     func remove(id: UUID) {
         peerIndex.removeValue(forKey: id)
+
         blocked.remove(id)
         liked.remove(id)
     }
@@ -123,11 +126,14 @@ class PeerManager {
         peer.lastSeen = Date()
         peerIndex[id] = peer
         return true
+
     }
 
     /// Returns all known peers.
     func allPeers() -> [Peer] {
+
         peerIndex.values.filter { !blocked.contains($0.id) }
+
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
@@ -137,11 +143,14 @@ class PeerManager {
                radius: Double,
                matching filters: [String: String] = [:]) -> [Peer] {
         return peerIndex.values.filter { peer in
+
             !blocked.contains(peer.id) &&
+
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius &&
             filters.allSatisfy { key, value in peer.attributes[key] == value }
         }
     }
+
 
     /// Returns peers whose geohash begins with the specified prefix. Useful for
     /// coarse location-based grouping using geohash bucketing. Optional
@@ -151,6 +160,7 @@ class PeerManager {
             !blocked.contains(peer.id) &&
             peer.geohash.hasPrefix(prefix) &&
             filters.allSatisfy { key, value in peer.attributes[key] == value }
+
         }
     }
 
@@ -214,6 +224,7 @@ class PeerManager {
         blocked = blocked.filter { peerIndex[$0] != nil }
     }
 
+
     /// Haversine distance between two coordinates in kilometers.
     private func distance(from: (Double, Double), to: (Double, Double)) -> Double {
         let earthRadiusKm = 6371.0
@@ -240,4 +251,5 @@ class PeerManager {
         blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
         liked = Set(snapshot.liked.filter { peerIndex[$0] != nil && !blocked.contains($0) })
     }
+
 }

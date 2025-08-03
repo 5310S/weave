@@ -1,9 +1,11 @@
 import XCTest
+
 import Foundation
 @testable import weave
 
 final class PeerManagerTests: XCTestCase {
     func testFiltersNearbyPeers() {
+
         let manager = PeerManager()
         let userLocation = Peer(latitude: 37.7749, longitude: -122.4194)
         let nearby = Peer(latitude: 37.7750, longitude: -122.4195)
@@ -11,6 +13,7 @@ final class PeerManagerTests: XCTestCase {
 
         manager.add(nearby)
         manager.add(farAway)
+
 
         let filteredPeers = manager.peers(near: userLocation.latitude, longitude: userLocation.longitude, radius: 10.0)
         XCTAssertTrue(filteredPeers.contains(nearby))
@@ -39,6 +42,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results.count, 2)
         XCTAssertEqual(results[0], nearer)
         XCTAssertEqual(results[1], near)
+
     }
 
     func testNearestPeersRespectsAttributeFilters() {
@@ -55,6 +59,7 @@ final class PeerManagerTests: XCTestCase {
                                            limit: 5,
                                            matching: ["hobby": "hiking"])
         XCTAssertEqual(results, [hikingPeer])
+
     }
 
     func testAttributeFilteringReturnsMatches() {
@@ -67,6 +72,7 @@ final class PeerManagerTests: XCTestCase {
 
         let results = manager.peers(near: 0.0, longitude: 0.0, radius: 1.0, matching: ["hobby": "hiking"])
         XCTAssertEqual(results, [hiker])
+
     }
 
     func testUpdatingPeerLocation() {
@@ -303,6 +309,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [sf])
     }
 
+
     func testPeersInGeohashPrefixWithAttributeFilter() {
         let manager = PeerManager()
         let sfHiker = Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
@@ -317,6 +324,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [sfHiker])
     }
 
+
     func testRecentPeersReturnsMostRecentFirst() {
         let manager = PeerManager()
         let older = Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -3600))
@@ -330,5 +338,6 @@ final class PeerManagerTests: XCTestCase {
 
         let results = manager.recentPeers(limit: 5)
         XCTAssertEqual(results, [newer, older])
+
     }
 }

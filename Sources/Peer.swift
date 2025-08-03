@@ -5,12 +5,15 @@ import Foundation
 /// a network address and their geographic location.
 struct Peer: Identifiable, Codable, Equatable {
     let id: UUID
+
     /// Optional human-friendly display name.
     var name: String?
+
     var address: String?
     var port: UInt16?
     var latitude: Double
     var longitude: Double
+
     /// Arbitrary attributes describing the peer, used for filtering.
     var attributes: [String: String]
     /// When this peer was last seen or updated.
@@ -23,14 +26,17 @@ struct Peer: Identifiable, Codable, Equatable {
 
     init(id: UUID = UUID(),
          name: String? = nil,
+
          address: String? = nil,
          port: UInt16? = nil,
          latitude: Double,
          longitude: Double,
+
          attributes: [String: String] = [:],
          lastSeen: Date = Date()) {
         self.id = id
         self.name = name
+
         self.address = address
         self.port = port
         self.latitude = latitude
@@ -47,5 +53,6 @@ struct Peer: Identifiable, Codable, Equatable {
         lhs.latitude == rhs.latitude &&
         lhs.longitude == rhs.longitude &&
         lhs.attributes == rhs.attributes
+
     }
 }
