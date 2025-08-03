@@ -109,9 +109,17 @@ class PeerManager {
     }
 
     /// Returns up to `limit` peers sorted by proximity to the provided location.
-    func nearestPeers(to latitude: Double, longitude: Double, limit: Int) -> [Peer] {
+    /// Optional attribute filters can restrict the results to peers matching all
+    /// specified key/value pairs.
+    func nearestPeers(to latitude: Double,
+                      longitude: Double,
+                      limit: Int,
+                      matching filters: [String: String] = [:]) -> [Peer] {
         let sorted = peerIndex.values
-            .filter { !blocked.contains($0.id) }
+            .filter { peer in
+                !blocked.contains(peer.id) &&
+                filters.allSatisfy { key, value in peer.attributes[key] == value }
+            }
             .sorted {
                 distance(from: (latitude, longitude), to: ($0.latitude, $0.longitude)) <
                 distance(from: (latitude, longitude), to: ($1.latitude, $1.longitude))

@@ -54,6 +54,12 @@ print("Hikers within 5000km: \(hikers.count)")
 let matches = manager.matchPeers(for: me, radius: 5000.0, limit: 5)
 print("Top matches by hobby within 5000km: \(matches.count)")
 
+let nearestHikers = manager.nearestPeers(to: selfLat,
+                                         longitude: selfLon,
+                                         limit: 3,
+                                         matching: ["hobby": "hiking"])
+print("Nearest hikers: \(nearestHikers.count)")
+
 // Persist peers to disk and load them back
 let storeURL = URL(fileURLWithPath: "/tmp/peers.json")
 let store = PeerStore(url: storeURL)

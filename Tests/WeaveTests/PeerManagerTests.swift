@@ -41,6 +41,22 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results[1], near)
     }
 
+    func testNearestPeersRespectsAttributeFilters() {
+        let manager = PeerManager()
+        let origin = Peer(latitude: 0.0, longitude: 0.0)
+        let hikingPeer = Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "hiking"])
+        let gamingPeer = Peer(latitude: 0.0, longitude: 0.02, attributes: ["hobby": "gaming"])
+
+        manager.add(hikingPeer)
+        manager.add(gamingPeer)
+
+        let results = manager.nearestPeers(to: origin.latitude,
+                                           longitude: origin.longitude,
+                                           limit: 5,
+                                           matching: ["hobby": "hiking"])
+        XCTAssertEqual(results, [hikingPeer])
+    }
+
     func testAttributeFilteringReturnsMatches() {
         let manager = PeerManager()
         let hiker = Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
