@@ -17,11 +17,11 @@ final class EncryptionTests: XCTestCase {
         let bobNode = P2PNode()
 
         let bobPeer = try Peer(id: UUID(), name: "Bob", address: nil, port: nil,
-                               latitude: 0, longitude: 0,
-                               attributes: ["publicKey": bobNode.publicKey.base64EncodedString()])
+                               publicKey: bobNode.publicKey,
+                               latitude: 0, longitude: 0)
         let alicePeer = try Peer(id: UUID(), name: "Alice", address: nil, port: nil,
-                                 latitude: 0, longitude: 0,
-                                 attributes: ["publicKey": aliceNode.publicKey.base64EncodedString()])
+                                 publicKey: aliceNode.publicKey,
+                                 latitude: 0, longitude: 0)
 
         let message = "Hello Bob".data(using: .utf8)!
         let encrypted = try aliceNode.send(message, to: bobPeer)

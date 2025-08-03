@@ -93,11 +93,10 @@ final class P2PNode {
 
     /// Derives a symmetric key from our private key and the peer's public key.
     private func sharedKey(with peer: Peer) throws -> SymmetricKey {
-        guard let base64 = peer.attributes["publicKey"],
-              let data = Data(base64Encoded: base64) else {
+        guard let publicKey = peer.publicKey else {
             throw P2PError.missingPeerPublicKey
         }
-        return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: data)
+        return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: publicKey)
     }
 
     enum P2PError: Error {
