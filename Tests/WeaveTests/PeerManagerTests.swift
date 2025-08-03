@@ -129,6 +129,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertFalse(await manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
+
     func testUpdatingPeerAttributes() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "gaming"])

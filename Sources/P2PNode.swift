@@ -44,6 +44,10 @@ actor P2PNode {
     /// Public key that can be shared with peers.
     let publicKey: Data
 
+    /// Maximum number of peers to retain in the shared key cache.
+    private let maxCachedPeers = 100
+    /// Tracks peer access order for LRU eviction.
+    private var accessOrder: [UUID] = []
     /// Cache of derived symmetric keys for peers, keyed by peer ID.
     private var sharedKeyCache: [UUID: SymmetricKey] = [:]
     /// Tracks the public key used when deriving the cached shared key.
@@ -109,11 +113,14 @@ actor P2PNode {
             throw P2PError.missingPeerPublicKey
         }
         if let cachedKey = sharedKeyCache[peer.id], cachedPublicKeys[peer.id] == publicKey {
+            refreshAccessOrder(for: peer.id)
             return cachedKey
         }
         let key = try keyDerivation(privateKey, publicKey)
         sharedKeyCache[peer.id] = key
         cachedPublicKeys[peer.id] = publicKey
+        refreshAccessOrder(for: peer.id)
+        evictIfNeeded()
         return key
     }
 
@@ -122,6 +129,24 @@ actor P2PNode {
     func invalidateSharedKey(for peerID: UUID) {
         sharedKeyCache.removeValue(forKey: peerID)
         cachedPublicKeys.removeValue(forKey: peerID)
+        accessOrder.removeAll { $0 == peerID }
+    }
+
+    /// Records access to a peer's cached key.
+    private func refreshAccessOrder(for peerID: UUID) {
+        if let index = accessOrder.firstIndex(of: peerID) {
+            accessOrder.remove(at: index)
+        }
+        accessOrder.append(peerID)
+    }
+
+    /// Removes least recently used entries when the cache exceeds its limit.
+    private func evictIfNeeded() {
+        if accessOrder.count > maxCachedPeers, let lru = accessOrder.first {
+            accessOrder.removeFirst()
+            sharedKeyCache.removeValue(forKey: lru)
+            cachedPublicKeys.removeValue(forKey: lru)
+        }
     }
 
     enum P2PError: Error {

@@ -52,6 +52,7 @@ actor PeerManager {
         var bucket = geohashIndex[key] ?? Set<UUID>()
         bucket.insert(peer.id)
         geohashIndex[key] = bucket
+
     }
 
     /// Removes a peer by id.

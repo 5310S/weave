@@ -86,4 +86,41 @@ final class P2PNodeTests: XCTestCase {
         XCTAssertEqual(derivationCalls, 2)
 
     }
+
+    func testCacheEvictsLeastRecentlyUsedPeer() throws {
+        var derivationCalls = 0
+        let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
+            derivationCalls += 1
+            return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        })
+
+        let message = Data("hi".utf8)
+        var peers: [Peer] = []
+
+        // Fill the cache to its limit
+        for _ in 0..<100 {
+            let keys = Encryption.generateKeyPair()
+            let peer = try Peer(publicKey: keys.publicKey, latitude: 0, longitude: 0)
+            peers.append(peer)
+            _ = try node.send(message, to: peer)
+        }
+
+        // Access the first peer again so it becomes most recently used
+        _ = try node.send(message, to: peers[0])
+        XCTAssertEqual(derivationCalls, 100)
+
+        // Add a new peer which should evict the least recently used (peers[1])
+        let extraKeys = Encryption.generateKeyPair()
+        let extraPeer = try Peer(publicKey: extraKeys.publicKey, latitude: 0, longitude: 0)
+        _ = try node.send(message, to: extraPeer)
+        XCTAssertEqual(derivationCalls, 101)
+
+        // Sending to peers[1] should derive again since it was evicted
+        _ = try node.send(message, to: peers[1])
+        XCTAssertEqual(derivationCalls, 102)
+
+        // peers[0] should still be cached
+        _ = try node.send(message, to: peers[0])
+        XCTAssertEqual(derivationCalls, 102)
+    }
 }
