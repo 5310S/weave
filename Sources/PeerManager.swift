@@ -267,6 +267,7 @@ final class PeerManager: @unchecked Sendable {
         queue.sync(flags: .barrier) {
             peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
             blocked = blocked.filter { peerIndex[$0] != nil }
+            liked = liked.filter { peerIndex[$0] != nil }
         }
 
     }

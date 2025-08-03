@@ -198,6 +198,20 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(manager.allPeers(), [fresh])
     }
 
+    func testPruneStaleRemovesLikedPeers() {
+        let manager = PeerManager()
+        let fresh = try! Peer(latitude: 0.0, longitude: 0.0)
+        let stale = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -7200))
+        manager.add(fresh)
+        manager.add(stale)
+        manager.like(id: fresh.id)
+        manager.like(id: stale.id)
+
+        manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+
+        XCTAssertEqual(manager.likedPeers(), [fresh])
+    }
+
     func testUpdateLastSeenChangesTimestamp() {
         let manager = PeerManager()
         let oldDate = Date(timeIntervalSince1970: 0)
