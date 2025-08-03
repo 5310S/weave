@@ -37,6 +37,12 @@ if let updated = manager.peer(id: movingPeer.id) {
     print("Peer network address: \(updated.address ?? "n/a"):\(updated.port ?? 0)")
 }
 
+// Update a single attribute and then remove it
+manager.updateAttribute(id: movingPeer.id, key: "hobby", value: "climbing")
+print("Updated hobby: \(manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none")")
+manager.removeAttribute(id: movingPeer.id, key: "hobby")
+print("Hobby after removal: \(manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none")")
+
 let hikers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0, matching: ["hobby": "hiking"])
 print("Hikers within 5000km: \(hikers.count)")
 

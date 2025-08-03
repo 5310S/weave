@@ -72,6 +72,24 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(updated?.attributes["hobby"], "hiking")
     }
 
+    func testUpdatingSingleAttribute() {
+        let manager = PeerManager()
+        let peer = Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(peer)
+        manager.updateAttribute(id: peer.id, key: "hobby", value: "chess")
+        let updated = manager.peer(id: peer.id)
+        XCTAssertEqual(updated?.attributes["hobby"], "chess")
+    }
+
+    func testRemovingAttribute() {
+        let manager = PeerManager()
+        let peer = Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "chess"])
+        manager.add(peer)
+        manager.removeAttribute(id: peer.id, key: "hobby")
+        let updated = manager.peer(id: peer.id)
+        XCTAssertNil(updated?.attributes["hobby"])
+    }
+
     func testUpdatingPeerAddress() {
         let manager = PeerManager()
         let peer = Peer(address: "1.2.3.4", port: 1000, latitude: 0.0, longitude: 0.0)

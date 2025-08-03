@@ -48,6 +48,22 @@ class PeerManager {
         peerIndex[id] = peer
     }
 
+    /// Sets or replaces a single attribute on the peer if present.
+    func updateAttribute(id: UUID, key: String, value: String) {
+        guard var peer = peerIndex[id] else { return }
+        peer.attributes[key] = value
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+    }
+
+    /// Removes a single attribute from the peer if present.
+    func removeAttribute(id: UUID, key: String) {
+        guard var peer = peerIndex[id] else { return }
+        peer.attributes.removeValue(forKey: key)
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+    }
+
     /// Updates a peer's network address and port if it exists in the manager.
     func updateAddress(id: UUID, address: String?, port: UInt16?) {
         guard var peer = peerIndex[id] else { return }
