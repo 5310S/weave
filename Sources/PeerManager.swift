@@ -2,28 +2,47 @@ import Foundation
 
 /// Manages known peers and provides basic discovery utilities.
 class PeerManager {
-    private var peers: [Peer] = []
 
-    /// Adds a peer to the manager.
+    private var peerIndex: [UUID: Peer] = [:]
+
+    /// Adds or updates a peer in the manager.
     func add(_ peer: Peer) {
-        peers.append(peer)
+        peerIndex[peer.id] = peer
+    }
+
+    /// Removes a peer by id.
+    func remove(id: UUID) {
+        peerIndex.removeValue(forKey: id)
+
     }
 
     /// Returns all known peers.
     func allPeers() -> [Peer] {
-        peers
+
+        Array(peerIndex.values)
+
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
     func peers(near latitude: Double, longitude: Double, radius: Double) -> [Peer] {
-<<<<<<< HEAD
+
         return peerIndex.values.filter { peer in
-=======
-        return peers.filter { peer in
->>>>>>> main
+
+
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius
         }
     }
+
+
+    /// Returns up to `limit` peers sorted by proximity to the provided location.
+    func nearestPeers(to latitude: Double, longitude: Double, limit: Int) -> [Peer] {
+        let sorted = peerIndex.values.sorted {
+            distance(from: (latitude, longitude), to: ($0.latitude, $0.longitude)) <
+            distance(from: (latitude, longitude), to: ($1.latitude, $1.longitude))
+        }
+        return Array(sorted.prefix(limit))
+    }
+
 
     /// Haversine distance between two coordinates in kilometers.
     private func distance(from: (Double, Double), to: (Double, Double)) -> Double {
