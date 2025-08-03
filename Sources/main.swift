@@ -13,14 +13,14 @@ let manager = PeerManager()
 let selfLat = 37.7749
 let selfLon = -122.4194
 
-let me = Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
+let me = try! Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
 
 // Add a peer in San Francisco
-let movingPeer = Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
+let movingPeer = try! Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
 manager.add(movingPeer)
 
 // Add another peer in Los Angeles with the same hobby
-let laPeer = Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+let laPeer = try! Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
 manager.add(laPeer)
 
 // Query peers sharing the same geohash prefix as the moving peer (coarse area match)
@@ -95,7 +95,7 @@ restored.unblock(id: laPeer.id)
 print("After unblocking LA user post-restore: \(restored.allPeers().count) peer(s)")
 
 // Demonstrate pruning stale peers
-let stalePeer = Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))
+let stalePeer = try! Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))
 manager.add(stalePeer)
 print("Total peers before pruning: \(manager.allPeers().count)")
 manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
