@@ -21,7 +21,9 @@ struct Peer: Identifiable, Codable, Equatable {
 
     /// Arbitrary attributes describing the peer, used for filtering.
     var attributes: [String: String]
-    /// When this peer was last seen or updated.
+    /// When this peer was last seen or updated. This value participates in
+    /// equality checks so that two `Peer` instances representing different
+    /// observation times are treated as distinct states.
     var lastSeen: Date
 
     /// Geohash representation of the peer's location for spatial indexing.
@@ -64,7 +66,8 @@ struct Peer: Identifiable, Codable, Equatable {
         lhs.port == rhs.port &&
         lhs.latitude == rhs.latitude &&
         lhs.longitude == rhs.longitude &&
-        lhs.attributes == rhs.attributes
+        lhs.attributes == rhs.attributes &&
+        lhs.lastSeen == rhs.lastSeen
 
     }
 }

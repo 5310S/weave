@@ -26,8 +26,11 @@ final class PeerManagerTests: XCTestCase {
         let peer = try! Peer(latitude: 37.0, longitude: -122.0)
         manager.add(peer)
         XCTAssertEqual(manager.allPeers().count, 1)
+        let prefix = String(peer.geohash.prefix(5))
+        XCTAssertEqual(manager.peers(inGeohash: prefix), [peer])
         manager.remove(id: peer.id)
         XCTAssertEqual(manager.allPeers().count, 0)
+        XCTAssertTrue(manager.peers(inGeohash: prefix).isEmpty)
     }
 
     func testNearestPeersReturnsSortedResults() {
@@ -116,10 +119,15 @@ final class PeerManagerTests: XCTestCase {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
         manager.add(peer)
+        let oldPrefix = String(peer.geohash.prefix(5))
         manager.updateLocation(id: peer.id, latitude: 1.0, longitude: 1.0)
-        let updated = manager.peer(id: peer.id)
-        XCTAssertEqual(updated?.latitude, 1.0)
-        XCTAssertEqual(updated?.longitude, 1.0)
+        let updated = manager.peer(id: peer.id)!
+        XCTAssertEqual(updated.latitude, 1.0)
+        XCTAssertEqual(updated.longitude, 1.0)
+        let newPrefix = String(updated.geohash.prefix(5))
+        XCTAssertNotEqual(oldPrefix, newPrefix)
+        XCTAssertTrue(manager.peers(inGeohash: newPrefix).contains(updated))
+        XCTAssertFalse(manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
     func testUpdatingPeerAttributes() {
@@ -196,6 +204,20 @@ final class PeerManagerTests: XCTestCase {
         manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
 
         XCTAssertEqual(manager.allPeers(), [fresh])
+    }
+
+    func testPruneStaleRemovesLikedPeers() {
+        let manager = PeerManager()
+        let fresh = try! Peer(latitude: 0.0, longitude: 0.0)
+        let stale = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -7200))
+        manager.add(fresh)
+        manager.add(stale)
+        manager.like(id: fresh.id)
+        manager.like(id: stale.id)
+
+        manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+
+        XCTAssertEqual(manager.likedPeers(), [fresh])
     }
 
     func testUpdateLastSeenChangesTimestamp() {
@@ -349,9 +371,9 @@ final class PeerManagerTests: XCTestCase {
 
     func testPeersInGeohashPrefixWithAttributeFilter() {
         let manager = PeerManager()
-        let sfHiker = Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
-        let sfBaker = Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
-        let laHiker = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+        let sfHiker = try! Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
+        let sfBaker = try! Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
+        let laHiker = try! Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
         manager.add(sfHiker)
         manager.add(sfBaker)
         manager.add(laHiker)
@@ -387,7 +409,7 @@ final class PeerManagerTests: XCTestCase {
         for _ in 0..<100 {
             group.enter()
             queue.async {
-                let peer = Peer(latitude: 0.0, longitude: 0.0)
+                let peer = try! Peer(latitude: 0.0, longitude: 0.0)
                 manager.add(peer)
                 group.leave()
             }

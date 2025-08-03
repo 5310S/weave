@@ -25,7 +25,8 @@ let laPeer = try! Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, att
 
 manager.add(laPeer)
 
-// Query peers sharing the same geohash prefix as the moving peer (coarse area match)
+// Query peers sharing the same geohash prefix as the moving peer (coarse area
+// match) and demonstrate attribute filtering.
 let prefix = String(movingPeer.geohash.prefix(5))
 let geohashPeers = manager.peers(inGeohash: prefix)
 print("Peers in geohash prefix \(prefix): \(geohashPeers.count)")
