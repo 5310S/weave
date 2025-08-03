@@ -17,6 +17,8 @@ struct GeoHash {
     /// Encodes the given latitude and longitude into a geohash string with the
     /// specified precision (number of characters).
     static func encode(latitude: Double, longitude: Double, precision: Int = 8) -> String {
+        guard (1...12).contains(precision) else { return "" }
+
         var latInterval = (-90.0, 90.0)
         var lonInterval = (-180.0, 180.0)
         var isEven = true
