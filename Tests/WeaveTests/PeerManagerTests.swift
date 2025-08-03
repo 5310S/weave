@@ -130,6 +130,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertFalse(manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
+
     func testUpdateLocationRejectsInvalidCoordinates() {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
@@ -144,6 +145,7 @@ final class PeerManagerTests: XCTestCase {
         updated = manager.peer(id: peer.id)!
         XCTAssertEqual(updated.latitude, 0.0)
         XCTAssertEqual(updated.longitude, 0.0)
+
     }
 
     func testUpdatingPeerAttributes() {
