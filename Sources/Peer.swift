@@ -3,7 +3,7 @@ import Foundation
 /// Represents a peer in the Weave network.
 /// Peers are identified by a unique ID and may advertise
 /// a network address and their geographic location.
-struct Peer: Identifiable, Codable, Equatable {
+struct Peer: Identifiable, Codable, Equatable, Hashable {
     enum PeerError: Error {
         case invalidLatitude(Double)
         case invalidLongitude(Double)
@@ -113,5 +113,17 @@ struct Peer: Identifiable, Codable, Equatable {
         lhs.attributes == rhs.attributes &&
         lhs.lastSeen == rhs.lastSeen
 
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(name)
+        hasher.combine(address)
+        hasher.combine(port)
+        hasher.combine(publicKey)
+        hasher.combine(latitude)
+        hasher.combine(longitude)
+        hasher.combine(attributes)
+        hasher.combine(lastSeen)
     }
 }
