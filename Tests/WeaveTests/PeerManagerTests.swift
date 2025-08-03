@@ -1,64 +1,63 @@
 import XCTest
 
 import Foundation
-import Dispatch
 @testable import weave
 
 final class PeerManagerTests: XCTestCase {
-    func testFiltersNearbyPeers() {
+    func testFiltersNearbyPeers() async {
 
         let manager = PeerManager()
         let userLocation = try! Peer(latitude: 37.7749, longitude: -122.4194)
         let nearby = try! Peer(latitude: 37.7750, longitude: -122.4195)
         let farAway = try! Peer(latitude: 40.7128, longitude: -74.0060)
 
-        manager.add(nearby)
-        manager.add(farAway)
+        await manager.add(nearby)
+        await manager.add(farAway)
 
 
-        let filteredPeers = manager.peers(near: userLocation.latitude, longitude: userLocation.longitude, radius: 10.0)
+        let filteredPeers = await manager.peers(near: userLocation.latitude, longitude: userLocation.longitude, radius: 10.0)
         XCTAssertTrue(filteredPeers.contains(nearby))
         XCTAssertFalse(filteredPeers.contains(farAway))
     }
 
-    func testRemovingPeerUpdatesIndex() {
+    func testRemovingPeerUpdatesIndex() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 37.0, longitude: -122.0)
-        manager.add(peer)
-        XCTAssertEqual(manager.allPeers().count, 1)
+        await manager.add(peer)
+        XCTAssertEqual(await manager.allPeers().count, 1)
         let prefix = String(peer.geohash.prefix(5))
-        XCTAssertEqual(manager.peers(inGeohash: prefix), [peer])
-        manager.remove(id: peer.id)
-        XCTAssertEqual(manager.allPeers().count, 0)
-        XCTAssertTrue(manager.peers(inGeohash: prefix).isEmpty)
+        XCTAssertEqual(await manager.peers(inGeohash: prefix), [peer])
+        await manager.remove(id: peer.id)
+        XCTAssertEqual(await manager.allPeers().count, 0)
+        XCTAssertTrue(await manager.peers(inGeohash: prefix).isEmpty)
     }
 
-    func testNearestPeersReturnsSortedResults() {
+    func testNearestPeersReturnsSortedResults() async {
         let manager = PeerManager()
         let origin = try! Peer(latitude: 0.0, longitude: 0.0)
         let nearer = try! Peer(latitude: 0.0, longitude: 0.05) // ~5.5km east
         let near = try! Peer(latitude: 0.0, longitude: 0.1)   // ~11km east
 
-        manager.add(near)
-        manager.add(nearer)
+        await manager.add(near)
+        await manager.add(nearer)
 
-        let results = manager.nearestPeers(to: origin.latitude, longitude: origin.longitude, limit: 2)
+        let results = await manager.nearestPeers(to: origin.latitude, longitude: origin.longitude, limit: 2)
         XCTAssertEqual(results.count, 2)
         XCTAssertEqual(results[0], nearer)
         XCTAssertEqual(results[1], near)
 
     }
 
-    func testNearestPeersRespectsAttributeFilters() {
+    func testNearestPeersRespectsAttributeFilters() async {
         let manager = PeerManager()
         let origin = try! Peer(latitude: 0.0, longitude: 0.0)
         let hikingPeer = try! Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "hiking"])
         let gamingPeer = try! Peer(latitude: 0.0, longitude: 0.02, attributes: ["hobby": "gaming"])
 
-        manager.add(hikingPeer)
-        manager.add(gamingPeer)
+        await manager.add(hikingPeer)
+        await manager.add(gamingPeer)
 
-        let results = manager.nearestPeers(to: origin.latitude,
+        let results = await manager.nearestPeers(to: origin.latitude,
                                            longitude: origin.longitude,
                                            limit: 5,
                                            matching: ["hobby": "hiking"])
@@ -66,7 +65,7 @@ final class PeerManagerTests: XCTestCase {
 
     }
 
-    func testNearestPeersMatchesNaiveImplementation() {
+    func testNearestPeersMatchesNaiveImplementation() async {
         let manager = PeerManager()
         let originLat = 0.0
         let originLon = 0.0
@@ -79,9 +78,9 @@ final class PeerManagerTests: XCTestCase {
             Peer(latitude: -0.2, longitude: 0.0)
         ]
 
-        peers.forEach { manager.add($0) }
+        for peer in peers { await manager.add(peer) }
 
-        let optimized = manager.nearestPeers(to: originLat, longitude: originLon, limit: 5)
+        let optimized = await manager.nearestPeers(to: originLat, longitude: originLon, limit: 5)
 
         func distance(_ from: (Double, Double), _ to: (Double, Double)) -> Double {
             let earthRadiusKm = 6371.0
@@ -94,7 +93,7 @@ final class PeerManagerTests: XCTestCase {
             return earthRadiusKm * c
         }
 
-        let naive = manager.allPeers().sorted {
+        let naive = await manager.allPeers().sorted {
             distance((originLat, originLon), ($0.latitude, $0.longitude)) <
             distance((originLat, originLon), ($1.latitude, $1.longitude))
         }
@@ -102,291 +101,291 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(optimized, Array(naive.prefix(5)))
     }
 
-    func testAttributeFilteringReturnsMatches() {
+    func testAttributeFilteringReturnsMatches() async {
         let manager = PeerManager()
         let hiker = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
         let gamer = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "gaming"])
 
-        manager.add(hiker)
-        manager.add(gamer)
+        await manager.add(hiker)
+        await manager.add(gamer)
 
-        let results = manager.peers(near: 0.0, longitude: 0.0, radius: 1.0, matching: ["hobby": "hiking"])
+        let results = await manager.peers(near: 0.0, longitude: 0.0, radius: 1.0, matching: ["hobby": "hiking"])
         XCTAssertEqual(results, [hiker])
 
     }
 
-    func testUpdatingPeerLocation() {
+    func testUpdatingPeerLocation() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
+        await manager.add(peer)
         let oldPrefix = String(peer.geohash.prefix(5))
-        manager.updateLocation(id: peer.id, latitude: 1.0, longitude: 1.0)
-        let updated = manager.peer(id: peer.id)!
+        await manager.updateLocation(id: peer.id, latitude: 1.0, longitude: 1.0)
+        let updated = await manager.peer(id: peer.id)!
         XCTAssertEqual(updated.latitude, 1.0)
         XCTAssertEqual(updated.longitude, 1.0)
         let newPrefix = String(updated.geohash.prefix(5))
         XCTAssertNotEqual(oldPrefix, newPrefix)
-        XCTAssertTrue(manager.peers(inGeohash: newPrefix).contains(updated))
-        XCTAssertFalse(manager.peers(inGeohash: oldPrefix).contains(updated))
+        XCTAssertTrue(await manager.peers(inGeohash: newPrefix).contains(updated))
+        XCTAssertFalse(await manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
-    func testUpdatingPeerAttributes() {
+    func testUpdatingPeerAttributes() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "gaming"])
-        manager.add(peer)
-        manager.updateAttributes(id: peer.id, attributes: ["hobby": "hiking"])
-        let updated = manager.peer(id: peer.id)
+        await manager.add(peer)
+        await manager.updateAttributes(id: peer.id, attributes: ["hobby": "hiking"])
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.attributes["hobby"], "hiking")
     }
 
-    func testUpdatingSingleAttribute() {
+    func testUpdatingSingleAttribute() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.updateAttribute(id: peer.id, key: "hobby", value: "chess")
-        let updated = manager.peer(id: peer.id)
+        await manager.add(peer)
+        await manager.updateAttribute(id: peer.id, key: "hobby", value: "chess")
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.attributes["hobby"], "chess")
     }
 
-    func testRemovingAttribute() {
+    func testRemovingAttribute() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "chess"])
-        manager.add(peer)
-        manager.removeAttribute(id: peer.id, key: "hobby")
-        let updated = manager.peer(id: peer.id)
+        await manager.add(peer)
+        await manager.removeAttribute(id: peer.id, key: "hobby")
+        let updated = await manager.peer(id: peer.id)
         XCTAssertNil(updated?.attributes["hobby"])
     }
 
-    func testUpdatingPeerAddress() {
+    func testUpdatingPeerAddress() async {
         let manager = PeerManager()
         let peer = try! Peer(address: "1.2.3.4", port: 1000, latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.updateAddress(id: peer.id, address: "5.6.7.8", port: 2000)
-        let updated = manager.peer(id: peer.id)
+        await manager.add(peer)
+        await manager.updateAddress(id: peer.id, address: "5.6.7.8", port: 2000)
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.address, "5.6.7.8")
         XCTAssertEqual(updated?.port, 2000)
     }
 
-    func testUpdatingPeerName() {
+    func testUpdatingPeerName() async {
         let manager = PeerManager()
         let peer = try! Peer(name: "Old", latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.updateName(id: peer.id, name: "New")
-        let updated = manager.peer(id: peer.id)
+        await manager.add(peer)
+        await manager.updateName(id: peer.id, name: "New")
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.name, "New")
         XCTAssertNotEqual(updated?.lastSeen, peer.lastSeen)
     }
 
-    func testMatchPeersRanksByAttributeScoreThenDistance() {
+    func testMatchPeersRanksByAttributeScoreThenDistance() async {
         let manager = PeerManager()
         let origin = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
         let nearMatch = try! Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "hiking"])
         let farMatch = try! Peer(latitude: 0.0, longitude: 1.0, attributes: ["hobby": "hiking"])
         let nonMatch = try! Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "gaming"])
 
-        manager.add(nearMatch)
-        manager.add(farMatch)
-        manager.add(nonMatch)
+        await manager.add(nearMatch)
+        await manager.add(farMatch)
+        await manager.add(nonMatch)
 
-        let matches = manager.matchPeers(for: origin, radius: 2000.0, limit: 2)
+        let matches = await manager.matchPeers(for: origin, radius: 2000.0, limit: 2)
         XCTAssertEqual(matches.count, 2)
         XCTAssertEqual(matches[0], nearMatch)
         XCTAssertEqual(matches[1], farMatch)
     }
 
-    func testPrunesStalePeers() {
+    func testPrunesStalePeers() async {
         let manager = PeerManager()
         let fresh = try! Peer(latitude: 0.0, longitude: 0.0)
         let stale = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -7200))
-        manager.add(fresh)
-        manager.add(stale)
+        await manager.add(fresh)
+        await manager.add(stale)
 
-        manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+        await manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
 
-        XCTAssertEqual(manager.allPeers(), [fresh])
+        XCTAssertEqual(await manager.allPeers(), [fresh])
     }
 
-    func testPruneStaleRemovesLikedPeers() {
+    func testPruneStaleRemovesLikedPeers() async {
         let manager = PeerManager()
         let fresh = try! Peer(latitude: 0.0, longitude: 0.0)
         let stale = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -7200))
-        manager.add(fresh)
-        manager.add(stale)
-        manager.like(id: fresh.id)
-        manager.like(id: stale.id)
+        await manager.add(fresh)
+        await manager.add(stale)
+        await manager.like(id: fresh.id)
+        await manager.like(id: stale.id)
 
-        manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+        await manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
 
-        XCTAssertEqual(manager.likedPeers(), [fresh])
+        XCTAssertEqual(await manager.likedPeers(), [fresh])
     }
 
-    func testUpdateLastSeenChangesTimestamp() {
+    func testUpdateLastSeenChangesTimestamp() async {
         let manager = PeerManager()
         let oldDate = Date(timeIntervalSince1970: 0)
         let peer = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: oldDate)
-        manager.add(peer)
+        await manager.add(peer)
 
         let newDate = Date(timeIntervalSince1970: 100)
-        manager.updateLastSeen(id: peer.id, at: newDate)
+        await manager.updateLastSeen(id: peer.id, at: newDate)
 
-        let updated = manager.peer(id: peer.id)
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.lastSeen, newDate)
     }
 
-    func testPersistenceRoundTrip() throws {
+    func testPersistenceRoundTrip() async throws {
         let manager = PeerManager()
         let timestamp = Date(timeIntervalSince1970: 1234)
         let peer = try! Peer(latitude: 1.0, longitude: 2.0, lastSeen: timestamp)
-        manager.add(peer)
+        await manager.add(peer)
 
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let store = PeerStore(url: tmp)
-        try manager.save(to: store)
+        try await manager.save(to: store)
 
         let restored = PeerManager()
-        try restored.load(from: store)
-        XCTAssertEqual(restored.allPeers(), [peer])
-        XCTAssertEqual(restored.peer(id: peer.id)?.lastSeen, timestamp)
+        try await restored.load(from: store)
+        XCTAssertEqual(await restored.allPeers(), [peer])
+        XCTAssertEqual(await restored.peer(id: peer.id)?.lastSeen, timestamp)
     }
 
-    func testBlockedPeersPersistThroughStore() throws {
+    func testBlockedPeersPersistThroughStore() async throws {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.block(id: peer.id)
+        await manager.add(peer)
+        await manager.block(id: peer.id)
 
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let store = PeerStore(url: tmp)
-        try manager.save(to: store)
+        try await manager.save(to: store)
 
         let restored = PeerManager()
-        try restored.load(from: store)
+        try await restored.load(from: store)
 
-        XCTAssertEqual(restored.allPeers().count, 0)
-        restored.unblock(id: peer.id)
-        XCTAssertEqual(restored.allPeers(), [peer])
+        XCTAssertEqual(await restored.allPeers().count, 0)
+        await restored.unblock(id: peer.id)
+        XCTAssertEqual(await restored.allPeers(), [peer])
     }
 
-    func testLikedPeersAreReturned() {
+    func testLikedPeersAreReturned() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.like(id: peer.id)
+        await manager.add(peer)
+        await manager.like(id: peer.id)
 
-        XCTAssertEqual(manager.likedPeers(), [peer])
+        XCTAssertEqual(await manager.likedPeers(), [peer])
 
-        manager.block(id: peer.id)
-        XCTAssertTrue(manager.likedPeers().isEmpty)
+        await manager.block(id: peer.id)
+        XCTAssertTrue(await manager.likedPeers().isEmpty)
     }
 
-    func testLikedPeersPersistThroughStore() throws {
+    func testLikedPeersPersistThroughStore() async throws {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.like(id: peer.id)
+        await manager.add(peer)
+        await manager.like(id: peer.id)
 
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         let store = PeerStore(url: tmp)
-        try manager.save(to: store)
+        try await manager.save(to: store)
 
         let restored = PeerManager()
-        try restored.load(from: store)
+        try await restored.load(from: store)
 
-        XCTAssertEqual(restored.likedPeers(), [peer])
+        XCTAssertEqual(await restored.likedPeers(), [peer])
     }
 
-    func testMutualLikesReturnPeersWhoLikeUser() {
+    func testMutualLikesReturnPeersWhoLikeUser() async {
         let manager = PeerManager()
         let myID = UUID()
         let liker = try! Peer(latitude: 0.0, longitude: 0.0, attributes: ["likes": myID.uuidString])
         let nonLiker = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(liker)
-        manager.add(nonLiker)
-        manager.like(id: liker.id)
-        manager.like(id: nonLiker.id)
+        await manager.add(liker)
+        await manager.add(nonLiker)
+        await manager.like(id: liker.id)
+        await manager.like(id: nonLiker.id)
 
-        let matches = manager.mutualLikes(for: myID)
+        let matches = await manager.mutualLikes(for: myID)
         XCTAssertEqual(matches, [liker])
     }
 
-    func testBlockedPeersAreExcludedFromQueries() {
+    func testBlockedPeersAreExcludedFromQueries() async {
         let manager = PeerManager()
         let first = try! Peer(latitude: 0.0, longitude: 0.0)
         let second = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(first)
-        manager.add(second)
+        await manager.add(first)
+        await manager.add(second)
 
-        manager.block(id: second.id)
+        await manager.block(id: second.id)
 
-        XCTAssertEqual(manager.allPeers(), [first])
-        XCTAssertFalse(manager.peers(near: 0.0, longitude: 0.0, radius: 1.0).contains(second))
+        XCTAssertEqual(await manager.allPeers(), [first])
+        XCTAssertFalse(await manager.peers(near: 0.0, longitude: 0.0, radius: 1.0).contains(second))
 
-        manager.unblock(id: second.id)
-        let all = manager.allPeers()
+        await manager.unblock(id: second.id)
+        let all = await manager.allPeers()
         XCTAssertTrue(all.contains(first))
         XCTAssertTrue(all.contains(second))
     }
 
-    func testConnectUpdatesLastSeen() {
+    func testConnectUpdatesLastSeen() async {
         let manager = PeerManager()
         let oldDate = Date(timeIntervalSince1970: 0)
         let peer = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: oldDate)
-        manager.add(peer)
+        await manager.add(peer)
 
-        let success = manager.connect(to: peer.id)
+        let success = await manager.connect(to: peer.id)
         XCTAssertTrue(success)
-        let updated = manager.peer(id: peer.id)
+        let updated = await manager.peer(id: peer.id)
         XCTAssertNotEqual(updated?.lastSeen, oldDate)
     }
 
-    func testConnectFailsForBlockedPeer() {
+    func testConnectFailsForBlockedPeer() async {
         let manager = PeerManager()
         let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
-        manager.block(id: peer.id)
+        await manager.add(peer)
+        await manager.block(id: peer.id)
 
-        XCTAssertFalse(manager.connect(to: peer.id))
+        XCTAssertFalse(await manager.connect(to: peer.id))
     }
 
-    func testGeohashEncoding() {
+    func testGeohashEncoding() async {
         let sf = try! Peer(latitude: 37.7749, longitude: -122.4194)
         XCTAssertEqual(sf.geohash, "9q8yyk8y")
     }
 
-    func testPeersInGeohashPrefix() {
+    func testPeersInGeohashPrefix() async {
         let manager = PeerManager()
         let sf = try! Peer(latitude: 37.7749, longitude: -122.4194)
         let la = try! Peer(latitude: 34.0522, longitude: -118.2437)
-        manager.add(sf)
-        manager.add(la)
+        await manager.add(sf)
+        await manager.add(la)
 
         let prefix = String(sf.geohash.prefix(5))
-        let results = manager.peers(inGeohash: prefix)
+        let results = await manager.peers(inGeohash: prefix)
         XCTAssertEqual(results, [sf])
     }
 
-    func testPeersInShorterGeohashPrefix() {
+    func testPeersInShorterGeohashPrefix() async {
         let manager = PeerManager()
         let sf = try! Peer(latitude: 37.7749, longitude: -122.4194)
         let la = try! Peer(latitude: 34.0522, longitude: -118.2437)
-        manager.add(sf)
-        manager.add(la)
+        await manager.add(sf)
+        await manager.add(la)
 
         let shortPrefix = String(sf.geohash.prefix(3))
-        let results = manager.peers(inGeohash: shortPrefix)
+        let results = await manager.peers(inGeohash: shortPrefix)
         XCTAssertTrue(results.contains(sf))
         XCTAssertFalse(results.contains(la))
     }
 
-    func testPeersInLongerGeohashPrefix() {
+    func testPeersInLongerGeohashPrefix() async {
         let manager = PeerManager()
         let first = try! Peer(latitude: 37.7749, longitude: -122.4194)
         let second = try! Peer(latitude: 37.7750, longitude: -122.4195)
-        manager.add(first)
-        manager.add(second)
+        await manager.add(first)
+        await manager.add(second)
 
         var prefixLength = 6
         while prefixLength <= first.geohash.count &&
@@ -397,85 +396,76 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertGreaterThan(prefixLength, 5)
 
         let longPrefix = String(first.geohash.prefix(prefixLength))
-        let results = manager.peers(inGeohash: longPrefix)
+        let results = await manager.peers(inGeohash: longPrefix)
         XCTAssertEqual(results, [first])
     }
 
 
-    func testPeersInGeohashPrefixWithAttributeFilter() {
+    func testPeersInGeohashPrefixWithAttributeFilter() async {
         let manager = PeerManager()
         let sfHiker = try! Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
         let sfBaker = try! Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
         let laHiker = try! Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
-        manager.add(sfHiker)
-        manager.add(sfBaker)
-        manager.add(laHiker)
+        await manager.add(sfHiker)
+        await manager.add(sfBaker)
+        await manager.add(laHiker)
 
         let prefix = String(sfHiker.geohash.prefix(5))
-        let results = manager.peers(inGeohash: prefix, matching: ["hobby": "hiking"])
+        let results = await manager.peers(inGeohash: prefix, matching: ["hobby": "hiking"])
         XCTAssertEqual(results, [sfHiker])
     }
 
 
-    func testRecentPeersReturnsMostRecentFirst() {
+    func testRecentPeersReturnsMostRecentFirst() async {
         let manager = PeerManager()
         let older = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -3600))
         let newer = try! Peer(latitude: 0.0, longitude: 0.0)
         let blocked = try! Peer(latitude: 0.0, longitude: 0.0)
 
-        manager.add(older)
-        manager.add(newer)
-        manager.add(blocked)
-        manager.block(id: blocked.id)
+        await manager.add(older)
+        await manager.add(newer)
+        await manager.add(blocked)
+        await manager.block(id: blocked.id)
 
-        let results = manager.recentPeers(limit: 5)
+        let results = await manager.recentPeers(limit: 5)
         XCTAssertEqual(results, [newer, older])
 
     }
 
     /// Ensures the manager handles concurrent access without crashing or losing peers.
-    func testConcurrentAccess() {
+    func testConcurrentAccess() async {
         let manager = PeerManager()
-        let group = DispatchGroup()
-        let queue = DispatchQueue.global(qos: .default)
 
-        for _ in 0..<100 {
-            group.enter()
-            queue.async {
-                let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-                manager.add(peer)
-                group.leave()
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+                    await manager.add(peer)
+                }
             }
         }
 
-        group.wait()
-        XCTAssertEqual(manager.allPeers().count, 100)
+        XCTAssertEqual(await manager.allPeers().count, 100)
     }
 
-    /// Invokes `nearestPeers` while other threads mutate the manager to ensure thread safety.
-    func testNearestPeersThreadSafetyDuringMutation() {
+    /// Invokes `nearestPeers` while other tasks mutate the manager to ensure thread safety.
+    func testNearestPeersThreadSafetyDuringMutation() async {
         let manager = PeerManager()
-        let queue = DispatchQueue.global(qos: .default)
-        let group = DispatchGroup()
 
-        for _ in 0..<100 {
-            group.enter()
-            queue.async {
-                let peer = try! Peer(latitude: 0.0, longitude: 0.0)
-                manager.add(peer)
-                group.leave()
-            }
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+                    await manager.add(peer)
+                }
 
-            group.enter()
-            queue.async {
-                _ = manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5)
-                group.leave()
+                group.addTask {
+                    _ = await manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5)
+                }
             }
         }
 
-        group.wait()
-
-        XCTAssertEqual(manager.allPeers().count, 100)
-        XCTAssertLessThanOrEqual(manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5).count, 5)
+        XCTAssertEqual(await manager.allPeers().count, 100)
+        XCTAssertLessThanOrEqual(await manager.nearestPeers(to: 0.0, longitude: 0.0, limit: 5).count, 5)
     }
 }

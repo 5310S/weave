@@ -4,16 +4,18 @@ import CoreLocation
 @testable import weave
 
 final class LocationServiceTests: XCTestCase {
-    func testLocationUpdatesFeedPeerManager() throws {
+    func testLocationUpdatesFeedPeerManager() async throws {
         let expectation = expectation(description: "location update")
         let service = LocationService()
         let manager = PeerManager()
         let peer = try Peer(latitude: 0.0, longitude: 0.0)
-        manager.add(peer)
+        await manager.add(peer)
 
         service.onLocationUpdate = { lat, lon in
-            manager.updateLocation(id: peer.id, latitude: lat, longitude: lon)
-            expectation.fulfill()
+            Task {
+                await manager.updateLocation(id: peer.id, latitude: lat, longitude: lon)
+                expectation.fulfill()
+            }
         }
 
         // Simulate a location update
@@ -21,7 +23,7 @@ final class LocationServiceTests: XCTestCase {
         service.locationManager(CLLocationManager(), didUpdateLocations: [simulated])
 
         waitForExpectations(timeout: 1.0)
-        let updated = manager.peer(id: peer.id)
+        let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.latitude, 50.0)
         XCTAssertEqual(updated?.longitude, 8.0)
 
