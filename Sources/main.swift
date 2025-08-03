@@ -38,3 +38,10 @@ try? manager.save(to: store)
 let restored = PeerManager()
 try? restored.load(from: store)
 print("Restored \(restored.allPeers().count) peer(s) from disk")
+
+// Demonstrate pruning stale peers
+let stalePeer = Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))
+manager.add(stalePeer)
+print("Total peers before pruning: \(manager.allPeers().count)")
+manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+print("Peers after pruning stale entries: \(manager.allPeers().count)")

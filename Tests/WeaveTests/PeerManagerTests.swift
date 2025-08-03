@@ -89,9 +89,35 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(matches[1], farMatch)
     }
 
+    func testPrunesStalePeers() {
+        let manager = PeerManager()
+        let fresh = Peer(latitude: 0.0, longitude: 0.0)
+        let stale = Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -7200))
+        manager.add(fresh)
+        manager.add(stale)
+
+        manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+
+        XCTAssertEqual(manager.allPeers(), [fresh])
+    }
+
+    func testUpdateLastSeenChangesTimestamp() {
+        let manager = PeerManager()
+        let oldDate = Date(timeIntervalSince1970: 0)
+        let peer = Peer(latitude: 0.0, longitude: 0.0, lastSeen: oldDate)
+        manager.add(peer)
+
+        let newDate = Date(timeIntervalSince1970: 100)
+        manager.updateLastSeen(id: peer.id, at: newDate)
+
+        let updated = manager.peer(id: peer.id)
+        XCTAssertEqual(updated?.lastSeen, newDate)
+    }
+
     func testPersistenceRoundTrip() throws {
         let manager = PeerManager()
-        let peer = Peer(latitude: 1.0, longitude: 2.0)
+        let timestamp = Date(timeIntervalSince1970: 1234)
+        let peer = Peer(latitude: 1.0, longitude: 2.0, lastSeen: timestamp)
         manager.add(peer)
 
         let tmp = FileManager.default.temporaryDirectory
@@ -102,5 +128,6 @@ final class PeerManagerTests: XCTestCase {
         let restored = PeerManager()
         try restored.load(from: store)
         XCTAssertEqual(restored.allPeers(), [peer])
+        XCTAssertEqual(restored.peer(id: peer.id)?.lastSeen, timestamp)
     }
 }

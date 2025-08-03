@@ -24,6 +24,7 @@ class PeerManager {
         guard var peer = peerIndex[id] else { return }
         peer.latitude = latitude
         peer.longitude = longitude
+        peer.lastSeen = Date()
         peerIndex[id] = peer
     }
 
@@ -31,6 +32,14 @@ class PeerManager {
     func updateAttributes(id: UUID, attributes: [String: String]) {
         guard var peer = peerIndex[id] else { return }
         peer.attributes = attributes
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+    }
+
+    /// Updates the last-seen timestamp for the given peer to the provided date (defaults to now).
+    func updateLastSeen(id: UUID, at date: Date = Date()) {
+        guard var peer = peerIndex[id] else { return }
+        peer.lastSeen = date
         peerIndex[id] = peer
     }
 
@@ -85,6 +94,11 @@ class PeerManager {
             }
             .prefix(limit)
             .map { $0.peer }
+    }
+
+    /// Removes peers that were last seen before the provided cutoff date.
+    func pruneStale(before cutoff: Date) {
+        peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
     }
 
     /// Haversine distance between two coordinates in kilometers.
