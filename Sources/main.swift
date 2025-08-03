@@ -25,6 +25,12 @@ manager.updateLocation(id: movingPeer.id, latitude: 40.7128, longitude: -74.0060
 nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5.0)
 print("Nearby peers after move: \(nearbyPeers.count)")
 
+// Update the peer's network address
+manager.updateAddress(id: movingPeer.id, address: "203.0.113.1", port: 8080)
+if let updated = manager.peer(id: movingPeer.id) {
+    print("Peer network address: \(updated.address ?? "n/a"):\(updated.port ?? 0)")
+}
+
 let hikers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0, matching: ["hobby": "hiking"])
 print("Hikers within 5000km: \(hikers.count)")
 

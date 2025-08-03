@@ -36,6 +36,15 @@ class PeerManager {
         peerIndex[id] = peer
     }
 
+    /// Updates a peer's network address and port if it exists in the manager.
+    func updateAddress(id: UUID, address: String?, port: UInt16?) {
+        guard var peer = peerIndex[id] else { return }
+        peer.address = address
+        peer.port = port
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+    }
+
     /// Updates the last-seen timestamp for the given peer to the provided date (defaults to now).
     func updateLastSeen(id: UUID, at date: Date = Date()) {
         guard var peer = peerIndex[id] else { return }

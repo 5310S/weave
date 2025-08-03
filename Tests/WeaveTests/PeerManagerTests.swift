@@ -72,6 +72,16 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(updated?.attributes["hobby"], "hiking")
     }
 
+    func testUpdatingPeerAddress() {
+        let manager = PeerManager()
+        let peer = Peer(address: "1.2.3.4", port: 1000, latitude: 0.0, longitude: 0.0)
+        manager.add(peer)
+        manager.updateAddress(id: peer.id, address: "5.6.7.8", port: 2000)
+        let updated = manager.peer(id: peer.id)
+        XCTAssertEqual(updated?.address, "5.6.7.8")
+        XCTAssertEqual(updated?.port, 2000)
+    }
+
     func testMatchPeersRanksByAttributeScoreThenDistance() {
         let manager = PeerManager()
         let origin = Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
