@@ -8,8 +8,8 @@ import Crypto
 import Security
 #else
 // On platforms without the Security framework (e.g. Linux), declare a
-// compatible alias so the code can compile. The key is stored using
-// `UserDefaults` in this case which is not as secure but keeps tests running.
+// compatible alias so the code can compile. The key is stored in a file with
+// restrictive permissions instead of the Keychain.
 typealias OSStatus = Int32
 #endif
 
@@ -56,8 +56,8 @@ struct PeerStore {
     private static let keyTag = "com.weave.peerstorekey"
 
     /// Retrieves an existing encryption key or creates one if needed. On Apple
-    /// platforms the key is stored in the Keychain; elsewhere a less secure
-    /// `UserDefaults` storage is used for testing purposes.
+    /// platforms the key is stored in the Keychain; elsewhere it is stored in a
+    /// file with restrictive permissions.
     private func loadOrCreateKey() throws -> SymmetricKey {
 #if canImport(Security)
         let query: [String: Any] = [
@@ -89,16 +89,35 @@ struct PeerStore {
         }
         return key
 #else
-        let defaults = UserDefaults.standard
-        if let data = defaults.data(forKey: Self.keyTag) {
+        if let data = Self.readKeyFile(at: keyURL) {
             return SymmetricKey(data: data)
         }
         let key = SymmetricKey(size: .bits256)
         let data = key.withUnsafeBytes { Data($0) }
-        defaults.set(data, forKey: Self.keyTag)
+        try Self.writeKeyFile(data, to: keyURL)
         return key
 #endif
     }
+
+#if !canImport(Security)
+    /// URL of the key file used on platforms without Keychain access.
+    private var keyURL: URL {
+        url.deletingLastPathComponent().appendingPathComponent("\(Self.keyTag).key")
+    }
+
+    /// Atomically reads the key file if it exists.
+    static func readKeyFile(at url: URL) -> Data? {
+        try? Data(contentsOf: url)
+    }
+
+    /// Atomically writes the key file with restrictive permissions.
+    static func writeKeyFile(_ data: Data, to url: URL) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: url, options: .atomic)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+#endif
 
     /// Saves the provided peers and blocked/liked IDs to disk, overwriting any
     /// existing file. Data is encrypted using AES.GCM before being written.
