@@ -5,7 +5,8 @@ final class PeerStoreTests: XCTestCase {
     func testEncryptedSaveLoadRoundTrip() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let store = PeerStore(url: tempURL)
-        let peer = Peer(latitude: 10.0, longitude: 20.0, attributes: ["foo": "bar"])
+        let timestamp = Date(timeIntervalSince1970: 0)
+        let peer = try Peer(latitude: 10.0, longitude: 20.0, attributes: ["foo": "bar"], lastSeen: timestamp)
         let blocked = [UUID()]
         let liked = [UUID()]
         try store.save(peers: [peer], blocked: blocked, liked: liked)
