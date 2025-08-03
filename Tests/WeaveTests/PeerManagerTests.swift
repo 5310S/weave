@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 @testable import weave
 
 final class PeerManagerTests: XCTestCase {
@@ -86,5 +87,20 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(matches.count, 2)
         XCTAssertEqual(matches[0], nearMatch)
         XCTAssertEqual(matches[1], farMatch)
+    }
+
+    func testPersistenceRoundTrip() throws {
+        let manager = PeerManager()
+        let peer = Peer(latitude: 1.0, longitude: 2.0)
+        manager.add(peer)
+
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let store = PeerStore(url: tmp)
+        try manager.save(to: store)
+
+        let restored = PeerManager()
+        try restored.load(from: store)
+        XCTAssertEqual(restored.allPeers(), [peer])
     }
 }

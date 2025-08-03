@@ -98,4 +98,15 @@ class PeerManager {
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         return earthRadiusKm * c
     }
+
+    /// Persists all known peers using the provided store.
+    func save(to store: PeerStore) throws {
+        try store.save(Array(peerIndex.values))
+    }
+
+    /// Loads peers from the provided store, replacing any existing peers.
+    func load(from store: PeerStore) throws {
+        let peers = try store.load()
+        peerIndex = Dictionary(uniqueKeysWithValues: peers.map { ($0.id, $0) })
+    }
 }

@@ -30,3 +30,11 @@ print("Hikers within 5000km: \(hikers.count)")
 
 let matches = manager.matchPeers(for: me, radius: 5000.0, limit: 5)
 print("Top matches by hobby within 5000km: \(matches.count)")
+
+// Persist peers to disk and load them back
+let storeURL = URL(fileURLWithPath: "/tmp/peers.json")
+let store = PeerStore(url: storeURL)
+try? manager.save(to: store)
+let restored = PeerManager()
+try? restored.load(from: store)
+print("Restored \(restored.allPeers().count) peer(s) from disk")
