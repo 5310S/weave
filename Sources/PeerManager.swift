@@ -222,6 +222,7 @@ class PeerManager {
     func pruneStale(before cutoff: Date) {
         peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
         blocked = blocked.filter { peerIndex[$0] != nil }
+        liked = liked.filter { peerIndex[$0] != nil }
     }
 
 
