@@ -1,7 +1,10 @@
 import Foundation
 
-// Demonstration of using the PeerManager. In the future this will
-// integrate with libp2p for real peer discovery and messaging.
+// Demonstration of using the PeerManager alongside a placeholder
+// networking node that will eventually speak libp2p.
+let node = P2PNode(bootstrapPeers: ["bootstrap.weave.example:4001"])
+node.start()
+defer { node.stop() }
 let manager = PeerManager()
 
 // Assume the current user is in San Francisco
