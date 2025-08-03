@@ -33,6 +33,16 @@ final class GeoHashTests: XCTestCase {
 
     }
 
+    func testDecodeThrowsInvalidCharacter() {
+        let invalidHash = "zzzzzz!z"
+        XCTAssertThrowsError(try GeoHash.decode(invalidHash)) { error in
+            guard case GeoHashError.invalidCharacter(let character) = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertEqual(character, "!")
+        }
+    }
+
     private func errorForPrecision(_ precision: Int) -> (Double, Double) {
         var latBits = 0
         var lonBits = 0
