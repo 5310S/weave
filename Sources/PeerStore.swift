@@ -131,6 +131,10 @@ struct PeerStore {
         } catch {
             throw StoreError.encryptionFailed
         }
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try sealedBox.combined.write(to: url, options: .atomic)
     }
 

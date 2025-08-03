@@ -42,4 +42,15 @@ final class PeerStoreTests: XCTestCase {
         let perms = attrs[.posixPermissions] as? Int
         XCTAssertEqual(perms, 0o600)
     }
+
+    func testSaveToBrandNewDirectory() throws {
+        let baseURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("subdir")
+        let storeURL = baseURL.appendingPathComponent("store.json")
+        let store = PeerStore(url: storeURL)
+        let peer = try Peer(latitude: 1.0, longitude: 2.0)
+        XCTAssertNoThrow(try store.save(peers: [peer], blocked: []))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
+    }
 }
