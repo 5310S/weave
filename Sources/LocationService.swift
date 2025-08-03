@@ -13,6 +13,7 @@ protocol LocationServiceDelegate: AnyObject {
 /// callback.
 final class LocationService: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
+    private var didStop = false
 
     /// Delegate that receives location updates.
     weak var delegate: LocationServiceDelegate?
@@ -42,6 +43,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     /// Stops location updates and clears callbacks.
     func stop() {
+        guard !didStop else { return }
+        didStop = true
         manager.stopUpdatingLocation()
         manager.delegate = nil
         delegate = nil
@@ -68,6 +71,10 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         delegate?.locationService(self, didFailWithError: error)
         onError?(error)
+    }
+
+    deinit {
+        stop()
     }
 }
 #endif

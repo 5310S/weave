@@ -78,5 +78,19 @@ final class LocationServiceTests: XCTestCase {
         XCTAssertNil(service.onLocationUpdate)
         XCTAssertNil(service.onError)
     }
+
+    func testDeinitClearsManagerDelegate() {
+        var service: LocationService? = LocationService()
+
+        let mirror = Mirror(reflecting: service as Any)
+        guard let manager = mirror.children.first(where: { $0.label == "manager" })?.value as? CLLocationManager else {
+            XCTFail("Unable to access CLLocationManager")
+            return
+        }
+
+        XCTAssertNotNil(manager.delegate)
+        service = nil
+        XCTAssertNil(manager.delegate)
+    }
 }
 #endif
