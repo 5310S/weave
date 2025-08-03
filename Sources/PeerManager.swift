@@ -16,7 +16,11 @@ class PeerManager {
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
     func peers(near latitude: Double, longitude: Double, radius: Double) -> [Peer] {
+<<<<<<< HEAD
+        return peerIndex.values.filter { peer in
+=======
         return peers.filter { peer in
+>>>>>>> main
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius
         }
     }
