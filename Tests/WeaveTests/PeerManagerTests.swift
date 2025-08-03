@@ -368,6 +368,39 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [sf])
     }
 
+    func testPeersInShorterGeohashPrefix() {
+        let manager = PeerManager()
+        let sf = try! Peer(latitude: 37.7749, longitude: -122.4194)
+        let la = try! Peer(latitude: 34.0522, longitude: -118.2437)
+        manager.add(sf)
+        manager.add(la)
+
+        let shortPrefix = String(sf.geohash.prefix(3))
+        let results = manager.peers(inGeohash: shortPrefix)
+        XCTAssertTrue(results.contains(sf))
+        XCTAssertFalse(results.contains(la))
+    }
+
+    func testPeersInLongerGeohashPrefix() {
+        let manager = PeerManager()
+        let first = try! Peer(latitude: 37.7749, longitude: -122.4194)
+        let second = try! Peer(latitude: 37.7750, longitude: -122.4195)
+        manager.add(first)
+        manager.add(second)
+
+        var prefixLength = 6
+        while prefixLength <= first.geohash.count &&
+              String(first.geohash.prefix(prefixLength)) == String(second.geohash.prefix(prefixLength)) {
+            prefixLength += 1
+        }
+        XCTAssertLessThanOrEqual(prefixLength, first.geohash.count)
+        XCTAssertGreaterThan(prefixLength, 5)
+
+        let longPrefix = String(first.geohash.prefix(prefixLength))
+        let results = manager.peers(inGeohash: longPrefix)
+        XCTAssertEqual(results, [first])
+    }
+
 
     func testPeersInGeohashPrefixWithAttributeFilter() {
         let manager = PeerManager()
