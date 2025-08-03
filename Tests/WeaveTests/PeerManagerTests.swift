@@ -309,6 +309,22 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [sf])
     }
 
+
+    func testPeersInGeohashPrefixWithAttributeFilter() {
+        let manager = PeerManager()
+        let sfHiker = Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
+        let sfBaker = Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
+        let laHiker = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+        manager.add(sfHiker)
+        manager.add(sfBaker)
+        manager.add(laHiker)
+
+        let prefix = String(sfHiker.geohash.prefix(5))
+        let results = manager.peers(inGeohash: prefix, matching: ["hobby": "hiking"])
+        XCTAssertEqual(results, [sfHiker])
+    }
+
+
     func testRecentPeersReturnsMostRecentFirst() {
         let manager = PeerManager()
         let older = Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -3600))

@@ -153,10 +153,14 @@ class PeerManager {
 
 
     /// Returns peers whose geohash begins with the specified prefix. Useful for
-    /// coarse location-based grouping using geohash bucketing.
-    func peers(inGeohash prefix: String) -> [Peer] {
+    /// coarse location-based grouping using geohash bucketing. Optional
+    /// attribute filters can further restrict the results.
+    func peers(inGeohash prefix: String, matching filters: [String: String] = [:]) -> [Peer] {
         peerIndex.values.filter { peer in
-            !blocked.contains(peer.id) && peer.geohash.hasPrefix(prefix)
+            !blocked.contains(peer.id) &&
+            peer.geohash.hasPrefix(prefix) &&
+            filters.allSatisfy { key, value in peer.attributes[key] == value }
+
         }
     }
 
@@ -232,7 +236,6 @@ class PeerManager {
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         return earthRadiusKm * c
     }
-
 
     /// Persists all known peers along with blocked and liked IDs using the provided store.
     func save(to store: PeerStore) throws {
