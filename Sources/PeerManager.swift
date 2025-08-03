@@ -2,6 +2,7 @@ import Foundation
 
 /// Manages known peers and provides basic discovery utilities.
 class PeerManager {
+
     private var peerIndex: [UUID: Peer] = [:]
 
     /// Adds or updates a peer in the manager.
@@ -12,19 +13,26 @@ class PeerManager {
     /// Removes a peer by id.
     func remove(id: UUID) {
         peerIndex.removeValue(forKey: id)
+
     }
 
     /// Returns all known peers.
     func allPeers() -> [Peer] {
+
         Array(peerIndex.values)
+
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
     func peers(near latitude: Double, longitude: Double, radius: Double) -> [Peer] {
+
         return peerIndex.values.filter { peer in
+
+
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius
         }
     }
+
 
     /// Returns up to `limit` peers sorted by proximity to the provided location.
     func nearestPeers(to latitude: Double, longitude: Double, limit: Int) -> [Peer] {
@@ -34,6 +42,7 @@ class PeerManager {
         }
         return Array(sorted.prefix(limit))
     }
+
 
     /// Haversine distance between two coordinates in kilometers.
     private func distance(from: (Double, Double), to: (Double, Double)) -> Double {
