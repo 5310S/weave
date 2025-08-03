@@ -176,4 +176,25 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertTrue(all.contains(first))
         XCTAssertTrue(all.contains(second))
     }
+
+    func testConnectUpdatesLastSeen() {
+        let manager = PeerManager()
+        let oldDate = Date(timeIntervalSince1970: 0)
+        let peer = Peer(latitude: 0.0, longitude: 0.0, lastSeen: oldDate)
+        manager.add(peer)
+
+        let success = manager.connect(to: peer.id)
+        XCTAssertTrue(success)
+        let updated = manager.peer(id: peer.id)
+        XCTAssertNotEqual(updated?.lastSeen, oldDate)
+    }
+
+    func testConnectFailsForBlockedPeer() {
+        let manager = PeerManager()
+        let peer = Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(peer)
+        manager.block(id: peer.id)
+
+        XCTAssertFalse(manager.connect(to: peer.id))
+    }
 }

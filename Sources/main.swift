@@ -20,6 +20,11 @@ manager.add(laPeer)
 var nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)
 print("Peers within 5000km: \(nearbyPeers.count)")
 
+// Connect to the moving peer and refresh its last-seen timestamp
+if manager.connect(to: movingPeer.id) {
+    print("Connected to moving peer")
+}
+
 // Block the Los Angeles peer
 manager.block(id: laPeer.id)
 nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)

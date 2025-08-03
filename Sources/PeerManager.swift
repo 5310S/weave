@@ -80,6 +80,16 @@ class PeerManager {
         peerIndex[id] = peer
     }
 
+    /// Simulates connecting to the peer with the given id. Returns `true` if the
+    /// peer exists and is not blocked. A successful connection refreshes the
+    /// peer's last-seen timestamp.
+    func connect(to id: UUID) -> Bool {
+        guard var peer = peerIndex[id], !blocked.contains(id) else { return false }
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+        return true
+    }
+
     /// Returns all known peers.
     func allPeers() -> [Peer] {
         peerIndex.values.filter { !blocked.contains($0.id) }
