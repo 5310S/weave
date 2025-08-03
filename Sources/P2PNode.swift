@@ -28,11 +28,11 @@ struct NoopLibP2PHost: LibP2PHosting {
 /// A networking node backed by a libp2p host.
 /// The node is initialised with a list of bootstrap peers and is responsible
 /// for starting and stopping the underlying host.
-final class P2PNode {
+actor P2PNode {
     /// Addresses of peers used to join the wider network.
     private let bootstrapPeers: [String]
     /// Factory used to create the libp2p host. Injected to allow mocking in tests.
-    private let hostBuilder: () -> LibP2PHosting
+    private let hostBuilder: @Sendable () -> LibP2PHosting
     /// The underlying libp2p host instance once started.
     private var host: LibP2PHosting?
     /// Indicates whether the node is actively running.
@@ -45,7 +45,7 @@ final class P2PNode {
     let publicKey: Data
 
     init(bootstrapPeers: [String] = [],
-         hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() }) {
+         hostBuilder: @escaping @Sendable () -> LibP2PHosting = { NoopLibP2PHost() }) {
         self.bootstrapPeers = bootstrapPeers
         self.hostBuilder = hostBuilder
         let pair = Encryption.generateKeyPair()
