@@ -187,12 +187,14 @@ final class PeerManager: @unchecked Sendable {
 
 
     /// Returns peers whose geohash begins with the specified prefix. Useful for
+
     /// coarse location-based grouping using geohash bucketing.
     func peers(inGeohash prefix: String) -> [Peer] {
         queue.sync {
             peerIndex.values.filter { peer in
                 !blocked.contains(peer.id) && peer.geohash.hasPrefix(prefix)
             }
+
         }
     }
 
@@ -258,10 +260,12 @@ final class PeerManager: @unchecked Sendable {
 
     /// Removes peers that were last seen before the provided cutoff date.
     func pruneStale(before cutoff: Date) {
+
         queue.sync(flags: .barrier) {
             peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
             blocked = blocked.filter { peerIndex[$0] != nil }
         }
+
     }
 
 
@@ -276,7 +280,6 @@ final class PeerManager: @unchecked Sendable {
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         return earthRadiusKm * c
     }
-
 
     /// Persists all known peers along with blocked and liked IDs using the provided store.
     func save(to store: PeerStore) throws {
