@@ -17,3 +17,4 @@ print("Discovered \(nearbyPeers.count) nearby peer(s)")
 
 let hikers = manager.peers(near: selfLat, longitude: selfLon, radius: 5.0, matching: ["hobby": "hiking"])
 print("Nearby hikers: \(hikers.count)")
+

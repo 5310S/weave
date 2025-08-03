@@ -9,6 +9,7 @@ struct Peer: Identifiable, Codable, Equatable {
     var port: UInt16?
     var latitude: Double
     var longitude: Double
+
     /// Arbitrary attributes describing the peer, used for filtering.
     var attributes: [String: String]
 
@@ -18,11 +19,14 @@ struct Peer: Identifiable, Codable, Equatable {
          latitude: Double,
          longitude: Double,
          attributes: [String: String] = [:]) {
+
         self.id = id
         self.address = address
         self.port = port
         self.latitude = latitude
         self.longitude = longitude
+
         self.attributes = attributes
+
     }
 }

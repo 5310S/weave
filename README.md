@@ -5,9 +5,11 @@ contains a Swift Package that will eventually power the networking layer for an
 iOS client. The current prototype includes:
 
 - Basic `Peer` model storing network and location information.
+
 - `PeerManager` with rudimentary radius-based filtering, optional attribute-based matching, and nearest-peer queries using the Haversine formula.
 - Sample command-line entry point demonstrating peer filtering.
 - Unit tests covering radius-based and proximity-sorted peer discovery logic.
+
 
 ## Building
 

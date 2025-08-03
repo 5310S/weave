@@ -2,7 +2,9 @@ import XCTest
 @testable import weave
 
 final class PeerManagerTests: XCTestCase {
+
     func testFiltersNearbyPeers() {
+
         let manager = PeerManager()
         let userLocation = Peer(latitude: 37.7749, longitude: -122.4194)
         let nearby = Peer(latitude: 37.7750, longitude: -122.4195)
@@ -10,6 +12,7 @@ final class PeerManagerTests: XCTestCase {
 
         manager.add(nearby)
         manager.add(farAway)
+
 
         let filteredPeers = manager.peers(near: userLocation.latitude, longitude: userLocation.longitude, radius: 10.0)
         XCTAssertTrue(filteredPeers.contains(nearby))
@@ -38,6 +41,7 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results.count, 2)
         XCTAssertEqual(results[0], nearer)
         XCTAssertEqual(results[1], near)
+
     }
 
     func testAttributeFilteringReturnsMatches() {
@@ -50,5 +54,6 @@ final class PeerManagerTests: XCTestCase {
 
         let results = manager.peers(near: 0.0, longitude: 0.0, radius: 1.0, matching: ["hobby": "hiking"])
         XCTAssertEqual(results, [hiker])
+
     }
 }
