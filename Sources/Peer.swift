@@ -4,6 +4,11 @@ import Foundation
 /// Peers are identified by a unique ID and may advertise
 /// a network address and their geographic location.
 struct Peer: Identifiable, Codable, Equatable {
+    enum PeerError: Error {
+        case invalidLatitude(Double)
+        case invalidLongitude(Double)
+    }
+
     let id: UUID
 
     /// Optional human-friendly display name.
@@ -33,7 +38,14 @@ struct Peer: Identifiable, Codable, Equatable {
          longitude: Double,
 
          attributes: [String: String] = [:],
-         lastSeen: Date = Date()) {
+         lastSeen: Date = Date()) throws {
+        guard (-90.0...90.0).contains(latitude) else {
+            throw PeerError.invalidLatitude(latitude)
+        }
+        guard (-180.0...180.0).contains(longitude) else {
+            throw PeerError.invalidLongitude(longitude)
+        }
+
         self.id = id
         self.name = name
 
