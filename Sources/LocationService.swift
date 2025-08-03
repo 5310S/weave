@@ -2,9 +2,10 @@
 import Foundation
 import CoreLocation
 
-/// Delegate protocol to receive location updates.
+/// Delegate protocol to receive location updates and errors.
 protocol LocationServiceDelegate: AnyObject {
     func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double)
+    func locationService(_ service: LocationService, didFailWithError error: Error)
 }
 
 /// A simple wrapper around `CLLocationManager` that requests
@@ -18,6 +19,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     /// Optional closure called when coordinates change.
     var onLocationUpdate: ((Double, Double) -> Void)?
+
+    /// Optional closure called when errors occur.
+    var onError: ((Error) -> Void)?
 
     override init() {
         super.init()
@@ -50,6 +54,11 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         let lon = location.coordinate.longitude
         delegate?.locationService(self, didUpdateLatitude: lat, longitude: lon)
         onLocationUpdate?(lat, lon)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        delegate?.locationService(self, didFailWithError: error)
+        onError?(error)
     }
 }
 #endif

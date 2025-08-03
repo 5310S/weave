@@ -1,4 +1,4 @@
-#if canImport(CoreLocation) && os(iOS)
+#if canImport(CoreLocation)
 import XCTest
 import CoreLocation
 @testable import weave
@@ -24,6 +24,33 @@ final class LocationServiceTests: XCTestCase {
         let updated = manager.peer(id: peer.id)
         XCTAssertEqual(updated?.latitude, 50.0)
         XCTAssertEqual(updated?.longitude, 8.0)
+    }
+
+    func testErrorPropagation() {
+        let delegateExpectation = expectation(description: "delegate error")
+        let closureExpectation = expectation(description: "closure error")
+        let service = LocationService()
+
+        class Delegate: LocationServiceDelegate {
+            var expectation: XCTestExpectation?
+
+            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+
+            func locationService(_ service: LocationService, didFailWithError error: Error) {
+                expectation?.fulfill()
+            }
+        }
+
+        let delegate = Delegate()
+        delegate.expectation = delegateExpectation
+        service.delegate = delegate
+
+        service.onError = { _ in closureExpectation.fulfill() }
+
+        let error = NSError(domain: "test", code: 1)
+        service.locationManager(CLLocationManager(), didFailWithError: error)
+
+        wait(for: [delegateExpectation, closureExpectation], timeout: 1.0)
     }
 }
 #endif
