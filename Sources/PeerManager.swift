@@ -3,6 +3,17 @@ import Foundation
 /// Manages known peers and provides basic discovery utilities.
 class PeerManager {
     private var peerIndex: [UUID: Peer] = [:]
+    private var blocked: Set<UUID> = []
+
+    /// Marks a peer as blocked, excluding it from discovery APIs.
+    func block(id: UUID) {
+        blocked.insert(id)
+    }
+
+    /// Removes a peer from the blocked list.
+    func unblock(id: UUID) {
+        blocked.remove(id)
+    }
 
     /// Adds or updates a peer in the manager.
     func add(_ peer: Peer) {
@@ -12,6 +23,7 @@ class PeerManager {
     /// Removes a peer by id.
     func remove(id: UUID) {
         peerIndex.removeValue(forKey: id)
+        blocked.remove(id)
     }
 
     /// Returns the peer with the given id, if present.
@@ -54,7 +66,7 @@ class PeerManager {
 
     /// Returns all known peers.
     func allPeers() -> [Peer] {
-        Array(peerIndex.values)
+        peerIndex.values.filter { !blocked.contains($0.id) }
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
@@ -64,6 +76,7 @@ class PeerManager {
                radius: Double,
                matching filters: [String: String] = [:]) -> [Peer] {
         return peerIndex.values.filter { peer in
+            !blocked.contains(peer.id) &&
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius &&
             filters.allSatisfy { key, value in peer.attributes[key] == value }
         }
@@ -71,10 +84,12 @@ class PeerManager {
 
     /// Returns up to `limit` peers sorted by proximity to the provided location.
     func nearestPeers(to latitude: Double, longitude: Double, limit: Int) -> [Peer] {
-        let sorted = peerIndex.values.sorted {
-            distance(from: (latitude, longitude), to: ($0.latitude, $0.longitude)) <
-            distance(from: (latitude, longitude), to: ($1.latitude, $1.longitude))
-        }
+        let sorted = peerIndex.values
+            .filter { !blocked.contains($0.id) }
+            .sorted {
+                distance(from: (latitude, longitude), to: ($0.latitude, $0.longitude)) <
+                distance(from: (latitude, longitude), to: ($1.latitude, $1.longitude))
+            }
         return Array(sorted.prefix(limit))
     }
 
@@ -83,7 +98,7 @@ class PeerManager {
     /// proximity (closest first).
     func matchPeers(for peer: Peer, radius: Double, limit: Int) -> [Peer] {
         let results: [(peer: Peer, score: Int, distance: Double)] = peerIndex.values.compactMap { candidate in
-            guard candidate.id != peer.id else { return nil }
+            guard candidate.id != peer.id, !blocked.contains(candidate.id) else { return nil }
             let dist = distance(from: (peer.latitude, peer.longitude), to: (candidate.latitude, candidate.longitude))
             guard dist <= radius else { return nil }
 
@@ -108,6 +123,7 @@ class PeerManager {
     /// Removes peers that were last seen before the provided cutoff date.
     func pruneStale(before cutoff: Date) {
         peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
+        blocked = blocked.filter { peerIndex[$0] != nil }
     }
 
     /// Haversine distance between two coordinates in kilometers.
@@ -131,5 +147,6 @@ class PeerManager {
     func load(from store: PeerStore) throws {
         let peers = try store.load()
         peerIndex = Dictionary(uniqueKeysWithValues: peers.map { ($0.id, $0) })
+        blocked = blocked.filter { peerIndex[$0] != nil }
     }
 }

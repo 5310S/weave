@@ -17,8 +17,14 @@ manager.add(movingPeer)
 let laPeer = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
 manager.add(laPeer)
 
-var nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5.0)
-print("Discovered \(nearbyPeers.count) nearby peer(s)")
+var nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)
+print("Peers within 5000km: \(nearbyPeers.count)")
+
+// Block the Los Angeles peer
+manager.block(id: laPeer.id)
+nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)
+print("Peers after blocking LA user: \(nearbyPeers.count)")
+manager.unblock(id: laPeer.id)
 
 // Update the peer's location to New York
 manager.updateLocation(id: movingPeer.id, latitude: 40.7128, longitude: -74.0060)

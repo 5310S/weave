@@ -140,4 +140,22 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(restored.allPeers(), [peer])
         XCTAssertEqual(restored.peer(id: peer.id)?.lastSeen, timestamp)
     }
+
+    func testBlockedPeersAreExcludedFromQueries() {
+        let manager = PeerManager()
+        let first = Peer(latitude: 0.0, longitude: 0.0)
+        let second = Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(first)
+        manager.add(second)
+
+        manager.block(id: second.id)
+
+        XCTAssertEqual(manager.allPeers(), [first])
+        XCTAssertFalse(manager.peers(near: 0.0, longitude: 0.0, radius: 1.0).contains(second))
+
+        manager.unblock(id: second.id)
+        let all = manager.allPeers()
+        XCTAssertTrue(all.contains(first))
+        XCTAssertTrue(all.contains(second))
+    }
 }
