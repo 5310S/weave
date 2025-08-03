@@ -8,9 +8,13 @@ let manager = PeerManager()
 let selfLat = 37.7749
 let selfLon = -122.4194
 
-// Add a nearby peer and a distant peer
-manager.add(Peer(latitude: 37.7750, longitude: -122.4183)) // within ~0.1km
-manager.add(Peer(latitude: 40.7128, longitude: -74.0060))   // New York
+// Add a nearby peer and a distant peer with hobby attributes
+manager.add(Peer(latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking"])) // within ~0.1km
+manager.add(Peer(latitude: 40.7128, longitude: -74.0060, attributes: ["hobby": "gaming"]))   // New York
 
 let nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5.0)
 print("Discovered \(nearbyPeers.count) nearby peer(s)")
+
+let hikers = manager.peers(near: selfLat, longitude: selfLon, radius: 5.0, matching: ["hobby": "hiking"])
+print("Nearby hikers: \(hikers.count)")
+
