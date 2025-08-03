@@ -40,6 +40,15 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    /// Stops location updates and clears callbacks.
+    func stop() {
+        manager.stopUpdatingLocation()
+        manager.delegate = nil
+        delegate = nil
+        onLocationUpdate = nil
+        onError = nil
+    }
+
     // MARK: - CLLocationManagerDelegate
 
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
