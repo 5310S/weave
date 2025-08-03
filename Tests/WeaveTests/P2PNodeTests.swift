@@ -47,4 +47,14 @@ final class P2PNodeTests: XCTestCase {
             XCTAssertEqual(error as? P2PNode.P2PError, .missingPeerPublicKey)
         }
     }
+
+    func testReceiveThrowsWhenPeerLacksPublicKey() throws {
+        let node = P2PNode()
+        let peer = try Peer(latitude: 0, longitude: 0)
+        let data = Data("hi".utf8)
+
+        XCTAssertThrowsError(try node.receive(data, from: peer)) { error in
+            XCTAssertEqual(error as? P2PNode.P2PError, .missingPeerPublicKey)
+        }
+    }
 }
