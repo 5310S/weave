@@ -33,6 +33,12 @@ if manager.connect(to: movingPeer.id) {
     print("Connected to moving peer")
 }
 
+// Like and then unlike the moving peer
+manager.like(id: movingPeer.id)
+print("Liked peers: \(manager.likedPeers().count)")
+manager.unlike(id: movingPeer.id)
+print("Liked peers after unlike: \(manager.likedPeers().count)")
+
 // Block the Los Angeles peer
 manager.block(id: laPeer.id)
 nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)

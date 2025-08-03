@@ -4,15 +4,33 @@ import Foundation
 class PeerManager {
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
+    private var liked: Set<UUID> = []
 
     /// Marks a peer as blocked, excluding it from discovery APIs.
     func block(id: UUID) {
         blocked.insert(id)
+        liked.remove(id)
     }
 
     /// Removes a peer from the blocked list.
     func unblock(id: UUID) {
         blocked.remove(id)
+    }
+
+    /// Marks a peer as liked if it exists and is not blocked.
+    func like(id: UUID) {
+        guard peerIndex[id] != nil, !blocked.contains(id) else { return }
+        liked.insert(id)
+    }
+
+    /// Removes a peer from the liked list.
+    func unlike(id: UUID) {
+        liked.remove(id)
+    }
+
+    /// Returns all liked peers that are not currently blocked.
+    func likedPeers() -> [Peer] {
+        liked.compactMap { peerIndex[$0] }.filter { !blocked.contains($0.id) }
     }
 
     /// Adds or updates a peer in the manager.
@@ -24,6 +42,7 @@ class PeerManager {
     func remove(id: UUID) {
         peerIndex.removeValue(forKey: id)
         blocked.remove(id)
+        liked.remove(id)
     }
 
     /// Returns the peer with the given id, if present.
@@ -196,15 +215,18 @@ class PeerManager {
         return earthRadiusKm * c
     }
 
-    /// Persists all known peers and blocked IDs using the provided store.
+    /// Persists all known peers along with blocked and liked IDs using the provided store.
     func save(to store: PeerStore) throws {
-        try store.save(peers: Array(peerIndex.values), blocked: Array(blocked))
+        try store.save(peers: Array(peerIndex.values),
+                      blocked: Array(blocked),
+                      liked: Array(liked))
     }
 
-    /// Loads peers (and blocked IDs) from the provided store, replacing any existing data.
+    /// Loads peers (and blocked/liked IDs) from the provided store, replacing any existing data.
     func load(from store: PeerStore) throws {
         let snapshot = try store.load()
         peerIndex = Dictionary(uniqueKeysWithValues: snapshot.peers.map { ($0.id, $0) })
         blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
+        liked = Set(snapshot.liked.filter { peerIndex[$0] != nil && !blocked.contains($0) })
     }
 }
