@@ -33,6 +33,14 @@ class PeerManager {
         liked.compactMap { peerIndex[$0] }.filter { !blocked.contains($0.id) }
     }
 
+    /// Returns liked peers that have indicated they like the given user.
+    /// A peer is considered a mutual match if its attributes contain the
+    /// provided `userID` under the key "likes".
+    func mutualLikes(for userID: UUID) -> [Peer] {
+        liked.compactMap { peerIndex[$0] }
+            .filter { $0.attributes["likes"] == userID.uuidString && !blocked.contains($0.id) }
+    }
+
     /// Adds or updates a peer in the manager.
     func add(_ peer: Peer) {
         peerIndex[peer.id] = peer

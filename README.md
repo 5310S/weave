@@ -11,6 +11,8 @@ iOS client. The current prototype includes:
 - `PeerManager` provides a `connect(to:)` helper that refreshes last-seen timestamps while respecting block lists.
 - `PeerManager` can list the most recently seen peers for recency-based discovery.
 - `PeerManager` supports liking and unliking peers and retrieving liked peers.
+- `PeerManager` can determine mutual matches by returning liked peers whose attributes
+  indicate they like the current user.
 - `PeerStore` persists known peers, blocked IDs, and liked peers to disk and restores them on launch.
 - Sample command-line entry point demonstrating peer filtering, geohash prefix queries, nearest-peer querying, updates (including display name and attribute tweaks), blocking, liking and pruning.
 - Unit tests covering radius-based, proximity-sorted, attribute-filtered, matching, update, blocking and pruning logic.

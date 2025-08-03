@@ -13,7 +13,7 @@ let selfLon = -122.4194
 let me = Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
 
 // Add a peer in San Francisco
-let movingPeer = Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking"])
+let movingPeer = Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
 manager.add(movingPeer)
 
 // Add another peer in Los Angeles with the same hobby
@@ -38,6 +38,10 @@ manager.like(id: movingPeer.id)
 print("Liked peers: \(manager.likedPeers().count)")
 manager.unlike(id: movingPeer.id)
 print("Liked peers after unlike: \(manager.likedPeers().count)")
+// Like again to demonstrate mutual match detection
+manager.like(id: movingPeer.id)
+let mutual = manager.mutualLikes(for: me.id)
+print("Mutual matches: \(mutual.count)")
 
 // Block the Los Angeles peer
 manager.block(id: laPeer.id)

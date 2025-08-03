@@ -233,6 +233,20 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(restored.likedPeers(), [peer])
     }
 
+    func testMutualLikesReturnPeersWhoLikeUser() {
+        let manager = PeerManager()
+        let myID = UUID()
+        let liker = Peer(latitude: 0.0, longitude: 0.0, attributes: ["likes": myID.uuidString])
+        let nonLiker = Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(liker)
+        manager.add(nonLiker)
+        manager.like(id: liker.id)
+        manager.like(id: nonLiker.id)
+
+        let matches = manager.mutualLikes(for: myID)
+        XCTAssertEqual(matches, [liker])
+    }
+
     func testBlockedPeersAreExcludedFromQueries() {
         let manager = PeerManager()
         let first = Peer(latitude: 0.0, longitude: 0.0)
