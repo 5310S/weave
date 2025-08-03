@@ -7,7 +7,11 @@ final class PeerManager: @unchecked Sendable {
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
+    /// Maps a geohash prefix to the IDs of peers within that bucket.
+    private var geohashIndex: [String: Set<UUID>] = [:]
     private let queue = DispatchQueue(label: "PeerManager.queue", attributes: .concurrent)
+    /// Length of geohash prefix used for indexing.
+    private let geohashPrefixLength = 5
 
     /// Marks a peer as blocked, excluding it from discovery APIs.
     func block(id: UUID) {
@@ -61,13 +65,27 @@ final class PeerManager: @unchecked Sendable {
     func add(_ peer: Peer) {
         queue.sync(flags: .barrier) {
             peerIndex[peer.id] = peer
+            let prefix = String(peer.geohash.prefix(geohashPrefixLength))
+            var bucket = geohashIndex[prefix] ?? Set<UUID>()
+            bucket.insert(peer.id)
+            geohashIndex[prefix] = bucket
         }
     }
 
     /// Removes a peer by id.
     func remove(id: UUID) {
         queue.sync(flags: .barrier) {
-            peerIndex.removeValue(forKey: id)
+            if let peer = peerIndex.removeValue(forKey: id) {
+                let prefix = String(peer.geohash.prefix(geohashPrefixLength))
+                if var bucket = geohashIndex[prefix] {
+                    bucket.remove(id)
+                    if bucket.isEmpty {
+                        geohashIndex.removeValue(forKey: prefix)
+                    } else {
+                        geohashIndex[prefix] = bucket
+                    }
+                }
+            }
             blocked.remove(id)
             liked.remove(id)
         }
@@ -84,10 +102,25 @@ final class PeerManager: @unchecked Sendable {
     func updateLocation(id: UUID, latitude: Double, longitude: Double) {
         queue.sync(flags: .barrier) {
             guard var peer = peerIndex[id] else { return }
+            let oldPrefix = String(peer.geohash.prefix(geohashPrefixLength))
             peer.latitude = latitude
             peer.longitude = longitude
             peer.lastSeen = Date()
             peerIndex[id] = peer
+            let newPrefix = String(peer.geohash.prefix(geohashPrefixLength))
+            if oldPrefix != newPrefix {
+                if var bucket = geohashIndex[oldPrefix] {
+                    bucket.remove(id)
+                    if bucket.isEmpty {
+                        geohashIndex.removeValue(forKey: oldPrefix)
+                    } else {
+                        geohashIndex[oldPrefix] = bucket
+                    }
+                }
+                var newBucket = geohashIndex[newPrefix] ?? Set<UUID>()
+                newBucket.insert(id)
+                geohashIndex[newPrefix] = newBucket
+            }
         }
     }
 
@@ -192,15 +225,17 @@ final class PeerManager: @unchecked Sendable {
         peers(inGeohash: prefix, matching: [:])
     }
 
-    /// Returns peers whose geohash begins with the specified prefix and match
-    /// all provided attribute filters.
-    func peers(inGeohash prefix: String,
-               matching filters: [String: String] = [:]) -> [Peer] {
+
+    /// Returns peers in the specified geohash prefix that match all provided
+    /// attribute filters.
+    func peers(inGeohash prefix: String, matching filters: [String: String]) -> [Peer] {
         queue.sync {
-            peerIndex.values.filter { peer in
-                !blocked.contains(peer.id) &&
-                peer.geohash.hasPrefix(prefix) &&
-                filters.allSatisfy { key, value in peer.attributes[key] == value }
+            let key = String(prefix.prefix(geohashPrefixLength))
+            guard let ids = geohashIndex[key] else { return [] }
+            return ids.compactMap { id in
+                guard let peer = peerIndex[id], !blocked.contains(id) else { return nil }
+                return filters.allSatisfy { k, v in peer.attributes[k] == v } ? peer : nil
+
             }
         }
     }
@@ -274,7 +309,11 @@ final class PeerManager: @unchecked Sendable {
         queue.sync(flags: .barrier) {
             peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
             blocked = blocked.filter { peerIndex[$0] != nil }
-            liked = liked.filter { peerIndex[$0] != nil }
+
+            liked = liked.filter { peerIndex[$0] != nil && !blocked.contains($0) }
+            geohashIndex = Dictionary(grouping: peerIndex.values, by: { String($0.geohash.prefix(geohashPrefixLength)) })
+                .mapValues { Set($0.map { $0.id }) }
+
         }
 
     }
@@ -307,6 +346,8 @@ final class PeerManager: @unchecked Sendable {
             peerIndex = Dictionary(uniqueKeysWithValues: snapshot.peers.map { ($0.id, $0) })
             blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
             liked = Set(snapshot.liked.filter { peerIndex[$0] != nil && !blocked.contains($0) })
+            geohashIndex = Dictionary(grouping: snapshot.peers, by: { String($0.geohash.prefix(geohashPrefixLength)) })
+                .mapValues { Set($0.map { $0.id }) }
         }
     }
 
