@@ -13,13 +13,26 @@ final class GeoHashTests: XCTestCase {
         for (lat, lon) in coordinates {
             for precision in precisions {
                 let hash = GeoHash.encode(latitude: lat, longitude: lon, precision: precision)
-                let (decodedLat, decodedLon) = GeoHash.decode(hash)
-                let (latErr, lonErr) = errorForPrecision(precision)
-                XCTAssertLessThanOrEqual(abs(decodedLat - lat), latErr / 2)
-                XCTAssertLessThanOrEqual(abs(decodedLon - lon), lonErr / 2)
-                let reencoded = GeoHash.encode(latitude: decodedLat, longitude: decodedLon, precision: precision)
-                XCTAssertEqual(reencoded, hash)
+                do {
+                    let (decodedLat, decodedLon) = try GeoHash.decode(hash)
+                    let (latErr, lonErr) = errorForPrecision(precision)
+                    XCTAssertLessThanOrEqual(abs(decodedLat - lat), latErr / 2)
+                    XCTAssertLessThanOrEqual(abs(decodedLon - lon), lonErr / 2)
+                    let reencoded = GeoHash.encode(latitude: decodedLat, longitude: decodedLon, precision: precision)
+                    XCTAssertEqual(reencoded, hash)
+                } catch {
+                    XCTFail("Unexpected error: \(error)")
+                }
             }
+        }
+    }
+
+    func testDecodeInvalidCharacterThrows() {
+        XCTAssertThrowsError(try GeoHash.decode("invalid!hash")) { error in
+            guard case GeoHashError.invalidCharacter(let char) = error else {
+                return XCTFail("Expected invalidCharacter error")
+            }
+            XCTAssertEqual(char, "!")
         }
     }
 
