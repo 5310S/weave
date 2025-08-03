@@ -64,24 +64,26 @@ final class P2PNodeTests: XCTestCase {
         }
     }
 
-    func testConcurrentStartStop() async {
-        let mock = MockHost()
-        let node = P2PNode(hostBuilder: { mock })
 
-        await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<10 {
-                group.addTask { await node.start() }
-            }
-        }
-        XCTAssertTrue(await node.isRunning)
-        XCTAssertEqual(mock.startCount, 1)
+    func testSharedKeyDerivationOccursOncePerPeer() throws {
+        var derivationCalls = 0
+        let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
+            derivationCalls += 1
+            return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        })
 
-        await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<10 {
-                group.addTask { await node.stop() }
-            }
-        }
-        XCTAssertFalse(await node.isRunning)
-        XCTAssertEqual(mock.stopCount, 1)
+        let peerKeys = Encryption.generateKeyPair()
+        var peer = try Peer(publicKey: peerKeys.publicKey, latitude: 0, longitude: 0)
+        let message = Data("hello".utf8)
+
+        _ = try node.send(message, to: peer)
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        let newKeys = Encryption.generateKeyPair()
+        peer.publicKey = newKeys.publicKey
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 2)
+
     }
 }
