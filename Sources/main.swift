@@ -10,14 +10,14 @@ let manager = PeerManager()
 // Assume the current user is in San Francisco
 let selfLat = 37.7749
 let selfLon = -122.4194
-let me = Peer(latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
+let me = Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
 
 // Add a peer in San Francisco
-let movingPeer = Peer(latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking"])
+let movingPeer = Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking"])
 manager.add(movingPeer)
 
 // Add another peer in Los Angeles with the same hobby
-let laPeer = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+let laPeer = Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
 manager.add(laPeer)
 
 // Query peers sharing the same geohash prefix as the moving peer (coarse area match)
@@ -48,6 +48,10 @@ manager.updateAddress(id: movingPeer.id, address: "203.0.113.1", port: 8080)
 if let updated = manager.peer(id: movingPeer.id) {
     print("Peer network address: \(updated.address ?? "n/a"):\(updated.port ?? 0)")
 }
+
+// Change the peer's display name
+manager.updateName(id: movingPeer.id, name: "Traveler")
+print("Peer name after update: \(manager.peer(id: movingPeer.id)?.name ?? "none")")
 
 // Update a single attribute and then remove it
 manager.updateAttribute(id: movingPeer.id, key: "hobby", value: "climbing")

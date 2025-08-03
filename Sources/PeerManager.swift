@@ -73,6 +73,14 @@ class PeerManager {
         peerIndex[id] = peer
     }
 
+    /// Updates a peer's display name if it exists in the manager.
+    func updateName(id: UUID, name: String?) {
+        guard var peer = peerIndex[id] else { return }
+        peer.name = name
+        peer.lastSeen = Date()
+        peerIndex[id] = peer
+    }
+
     /// Updates the last-seen timestamp for the given peer to the provided date (defaults to now).
     func updateLastSeen(id: UUID, at date: Date = Date()) {
         guard var peer = peerIndex[id] else { return }

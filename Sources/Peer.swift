@@ -5,6 +5,8 @@ import Foundation
 /// a network address and their geographic location.
 struct Peer: Identifiable, Codable, Equatable {
     let id: UUID
+    /// Optional human-friendly display name.
+    var name: String?
     var address: String?
     var port: UInt16?
     var latitude: Double
@@ -20,6 +22,7 @@ struct Peer: Identifiable, Codable, Equatable {
     }
 
     init(id: UUID = UUID(),
+         name: String? = nil,
          address: String? = nil,
          port: UInt16? = nil,
          latitude: Double,
@@ -27,6 +30,7 @@ struct Peer: Identifiable, Codable, Equatable {
          attributes: [String: String] = [:],
          lastSeen: Date = Date()) {
         self.id = id
+        self.name = name
         self.address = address
         self.port = port
         self.latitude = latitude
@@ -37,6 +41,7 @@ struct Peer: Identifiable, Codable, Equatable {
 
     static func == (lhs: Peer, rhs: Peer) -> Bool {
         lhs.id == rhs.id &&
+        lhs.name == rhs.name &&
         lhs.address == rhs.address &&
         lhs.port == rhs.port &&
         lhs.latitude == rhs.latitude &&
