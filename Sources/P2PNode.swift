@@ -44,8 +44,10 @@ final class P2PNode {
     /// Public key that can be shared with peers.
     let publicKey: Data
 
-    init(bootstrapPeers: [String] = []) {
+    init(bootstrapPeers: [String] = [],
+         hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() }) {
         self.bootstrapPeers = bootstrapPeers
+        self.hostBuilder = hostBuilder
         let pair = Encryption.generateKeyPair()
         self.privateKey = pair.privateKey
         self.publicKey = pair.publicKey
