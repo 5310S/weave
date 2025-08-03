@@ -2,26 +2,25 @@ import Foundation
 
 /// Manages known peers and provides basic discovery utilities.
 class PeerManager {
-    private var peerIndex: [UUID: Peer] = [:]
+    private var peers: [Peer] = []
 
-    /// Adds or updates a peer in the manager.
+    /// Adds a peer to the manager.
     func add(_ peer: Peer) {
-        peerIndex[peer.id] = peer
-    }
-
-    /// Removes a peer by id.
-    func remove(id: UUID) {
-        peerIndex.removeValue(forKey: id)
+        peers.append(peer)
     }
 
     /// Returns all known peers.
     func allPeers() -> [Peer] {
-        Array(peerIndex.values)
+        peers
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
     func peers(near latitude: Double, longitude: Double, radius: Double) -> [Peer] {
+<<<<<<< HEAD
         return peerIndex.values.filter { peer in
+=======
+        return peers.filter { peer in
+>>>>>>> main
             distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius
         }
     }
