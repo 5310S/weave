@@ -4,6 +4,7 @@ An experimental peer-to-peer dating application prototype. This repository
 contains a Swift Package that will eventually power the networking layer for an
 iOS client. The current prototype includes:
 
+
 - Basic `Peer` model storing a display name, network details, location and last-seen timestamp information.
 - `PeerManager` with rudimentary radius-based filtering, optional attribute-based matching, and nearest-peer queries (with optional attribute filters) using the Haversine formula.
 - `PeerManager` supports peer removal, updates to display name, network address, location and attribute metadata (including individual attribute changes), pruning of stale peers by last-seen time, and blocking/unblocking of peers.
@@ -30,6 +31,7 @@ iOS client. The current prototype includes:
 | Encryption | CryptoKit or libsodium | Provides end-to-end encryption for sensitive data and messages. |
 | Notifications | APNs (optional) | Alerts users about messages or connection requests when backgrounded. |
 
+
 ## Building
 
 ```bash
@@ -47,4 +49,6 @@ swift test
 - Integrate [libp2p](https://libp2p.io) for decentralised peer discovery and messaging.
 - Add geolocation fetching via CoreLocation on iOS.
 - Implement encrypted communication using CryptoKit.
+
 - Use geohash bucketing to index peers in a distributed hash table for efficient location-based lookups.
+

@@ -1,15 +1,18 @@
 import Foundation
 
+
 // Demonstration of using the PeerManager alongside a placeholder
 // networking node that will eventually speak libp2p.
 let node = P2PNode(bootstrapPeers: ["bootstrap.weave.example:4001"])
 node.start()
 defer { node.stop() }
+
 let manager = PeerManager()
 
 // Assume the current user is in San Francisco
 let selfLat = 37.7749
 let selfLon = -122.4194
+
 let me = Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
 
 // Add a peer in San Francisco
@@ -101,3 +104,4 @@ print("Peers after pruning stale entries: \(manager.allPeers().count)")
 // Fetch the most recently seen peers
 let recent = manager.recentPeers(limit: 2)
 print("Most recently seen peers: \(recent.count)")
+
