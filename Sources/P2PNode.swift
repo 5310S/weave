@@ -44,10 +44,20 @@ final class P2PNode {
     /// Public key that can be shared with peers.
     let publicKey: Data
 
+    /// Cache of derived symmetric keys for peers, keyed by peer ID.
+    private var sharedKeyCache: [UUID: SymmetricKey] = [:]
+    /// Tracks the public key used when deriving the cached shared key.
+    private var cachedPublicKeys: [UUID: Data] = [:]
+    /// Function used to derive a shared key. Injected for testing to observe
+    /// derivation calls.
+    private let keyDerivation: (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey
+
     init(bootstrapPeers: [String] = [],
-         hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() }) {
+         hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() },
+         keyDerivation: @escaping (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey = Encryption.deriveSharedSecret) {
         self.bootstrapPeers = bootstrapPeers
         self.hostBuilder = hostBuilder
+        self.keyDerivation = keyDerivation
         let pair = Encryption.generateKeyPair()
         self.privateKey = pair.privateKey
         self.publicKey = pair.publicKey
@@ -96,7 +106,20 @@ final class P2PNode {
         guard let publicKey = peer.publicKey else {
             throw P2PError.missingPeerPublicKey
         }
-        return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: publicKey)
+        if let cachedKey = sharedKeyCache[peer.id], cachedPublicKeys[peer.id] == publicKey {
+            return cachedKey
+        }
+        let key = try keyDerivation(privateKey, publicKey)
+        sharedKeyCache[peer.id] = key
+        cachedPublicKeys[peer.id] = publicKey
+        return key
+    }
+
+    /// Removes any cached shared key for the given peer ID so a new one will
+    /// be derived on next use. Call when a peer's public key changes.
+    func invalidateSharedKey(for peerID: UUID) {
+        sharedKeyCache.removeValue(forKey: peerID)
+        cachedPublicKeys.removeValue(forKey: peerID)
     }
 
     enum P2PError: Error {

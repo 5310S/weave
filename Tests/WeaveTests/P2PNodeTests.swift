@@ -57,4 +57,25 @@ final class P2PNodeTests: XCTestCase {
             XCTAssertEqual(error as? P2PNode.P2PError, .missingPeerPublicKey)
         }
     }
+
+    func testSharedKeyDerivationOccursOncePerPeer() throws {
+        var derivationCalls = 0
+        let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
+            derivationCalls += 1
+            return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        })
+
+        let peerKeys = Encryption.generateKeyPair()
+        var peer = try Peer(publicKey: peerKeys.publicKey, latitude: 0, longitude: 0)
+        let message = Data("hello".utf8)
+
+        _ = try node.send(message, to: peer)
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        let newKeys = Encryption.generateKeyPair()
+        peer.publicKey = newKeys.publicKey
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 2)
+    }
 }
