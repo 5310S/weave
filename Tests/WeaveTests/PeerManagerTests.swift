@@ -1,6 +1,7 @@
 import XCTest
 
 import Foundation
+import Dispatch
 @testable import weave
 
 final class PeerManagerTests: XCTestCase {
@@ -309,6 +310,22 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [sf])
     }
 
+
+    func testPeersInGeohashPrefixWithAttributeFilter() {
+        let manager = PeerManager()
+        let sfHiker = Peer(latitude: 37.7749, longitude: -122.4194, attributes: ["hobby": "hiking"])
+        let sfBaker = Peer(latitude: 37.7750, longitude: -122.4195, attributes: ["hobby": "baking"])
+        let laHiker = Peer(latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+        manager.add(sfHiker)
+        manager.add(sfBaker)
+        manager.add(laHiker)
+
+        let prefix = String(sfHiker.geohash.prefix(5))
+        let results = manager.peers(inGeohash: prefix, matching: ["hobby": "hiking"])
+        XCTAssertEqual(results, [sfHiker])
+    }
+
+
     func testRecentPeersReturnsMostRecentFirst() {
         let manager = PeerManager()
         let older = try! Peer(latitude: 0.0, longitude: 0.0, lastSeen: Date(timeIntervalSinceNow: -3600))
@@ -323,5 +340,24 @@ final class PeerManagerTests: XCTestCase {
         let results = manager.recentPeers(limit: 5)
         XCTAssertEqual(results, [newer, older])
 
+    }
+
+    /// Ensures the manager handles concurrent access without crashing or losing peers.
+    func testConcurrentAccess() {
+        let manager = PeerManager()
+        let group = DispatchGroup()
+        let queue = DispatchQueue.global(qos: .default)
+
+        for _ in 0..<100 {
+            group.enter()
+            queue.async {
+                let peer = Peer(latitude: 0.0, longitude: 0.0)
+                manager.add(peer)
+                group.leave()
+            }
+        }
+
+        group.wait()
+        XCTAssertEqual(manager.allPeers().count, 100)
     }
 }

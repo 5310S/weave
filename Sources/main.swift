@@ -15,18 +15,23 @@ let selfLon = -122.4194
 
 let me = try! Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
 
+
 // Add a peer in San Francisco
 let movingPeer = try! Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
 manager.add(movingPeer)
 
 // Add another peer in Los Angeles with the same hobby
 let laPeer = try! Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
+
 manager.add(laPeer)
 
 // Query peers sharing the same geohash prefix as the moving peer (coarse area match)
 let prefix = String(movingPeer.geohash.prefix(5))
 let geohashPeers = manager.peers(inGeohash: prefix)
 print("Peers in geohash prefix \(prefix): \(geohashPeers.count)")
+let hikingInPrefix = manager.peers(inGeohash: prefix, matching: ["hobby": "hiking"])
+print("Hiking peers in geohash prefix \(prefix): \(hikingInPrefix.count)")
+
 
 var nearbyPeers = manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0)
 print("Peers within 5000km: \(nearbyPeers.count)")
