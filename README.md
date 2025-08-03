@@ -7,8 +7,9 @@ iOS client. The current prototype includes:
 - Basic `Peer` model storing network and location information.
 - `PeerManager` with rudimentary radius-based filtering, optional attribute-based matching, and nearest-peer queries using the Haversine formula.
 - `PeerManager` supports peer removal and updates to location and attribute metadata.
+- `PeerManager` can rank nearby peers by shared attribute matches.
 - Sample command-line entry point demonstrating peer filtering and updates.
-- Unit tests covering radius-based, proximity-sorted, attribute-filtered, and update logic.
+- Unit tests covering radius-based, proximity-sorted, attribute-filtered, matching, and update logic.
 
 ## Building
 

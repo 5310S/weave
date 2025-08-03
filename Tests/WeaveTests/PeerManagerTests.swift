@@ -70,4 +70,21 @@ final class PeerManagerTests: XCTestCase {
         let updated = manager.peer(id: peer.id)
         XCTAssertEqual(updated?.attributes["hobby"], "hiking")
     }
+
+    func testMatchPeersRanksByAttributeScoreThenDistance() {
+        let manager = PeerManager()
+        let origin = Peer(latitude: 0.0, longitude: 0.0, attributes: ["hobby": "hiking"])
+        let nearMatch = Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "hiking"])
+        let farMatch = Peer(latitude: 0.0, longitude: 1.0, attributes: ["hobby": "hiking"])
+        let nonMatch = Peer(latitude: 0.0, longitude: 0.05, attributes: ["hobby": "gaming"])
+
+        manager.add(nearMatch)
+        manager.add(farMatch)
+        manager.add(nonMatch)
+
+        let matches = manager.matchPeers(for: origin, radius: 2000.0, limit: 2)
+        XCTAssertEqual(matches.count, 2)
+        XCTAssertEqual(matches[0], nearMatch)
+        XCTAssertEqual(matches[1], farMatch)
+    }
 }

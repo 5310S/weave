@@ -60,6 +60,33 @@ class PeerManager {
         return Array(sorted.prefix(limit))
     }
 
+    /// Returns up to `limit` peers within `radius` kilometers of the given peer,
+    /// ranked first by number of matching attribute key/value pairs and then by
+    /// proximity (closest first).
+    func matchPeers(for peer: Peer, radius: Double, limit: Int) -> [Peer] {
+        let results: [(peer: Peer, score: Int, distance: Double)] = peerIndex.values.compactMap { candidate in
+            guard candidate.id != peer.id else { return nil }
+            let dist = distance(from: (peer.latitude, peer.longitude), to: (candidate.latitude, candidate.longitude))
+            guard dist <= radius else { return nil }
+
+            let score = peer.attributes.reduce(0) { acc, pair in
+                acc + (candidate.attributes[pair.key] == pair.value ? 1 : 0)
+            }
+            return (candidate, score, dist)
+        }
+
+        return results
+            .sorted { lhs, rhs in
+                if lhs.score == rhs.score {
+                    return lhs.distance < rhs.distance
+                } else {
+                    return lhs.score > rhs.score
+                }
+            }
+            .prefix(limit)
+            .map { $0.peer }
+    }
+
     /// Haversine distance between two coordinates in kilometers.
     private func distance(from: (Double, Double), to: (Double, Double)) -> Double {
         let earthRadiusKm = 6371.0
