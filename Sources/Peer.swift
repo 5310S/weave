@@ -14,6 +14,11 @@ struct Peer: Identifiable, Codable, Equatable {
     /// When this peer was last seen or updated.
     var lastSeen: Date
 
+    /// Geohash representation of the peer's location for spatial indexing.
+    var geohash: String {
+        GeoHash.encode(latitude: latitude, longitude: longitude)
+    }
+
     init(id: UUID = UUID(),
          address: String? = nil,
          port: UInt16? = nil,

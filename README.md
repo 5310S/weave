@@ -10,7 +10,7 @@ iOS client. The current prototype includes:
 - `PeerManager` can rank nearby peers by shared attribute matches.
 - `PeerManager` provides a `connect(to:)` helper that refreshes last-seen timestamps while respecting block lists.
 - `PeerStore` persists known peers and blocked IDs to disk and restores them on launch.
-- Sample command-line entry point demonstrating peer filtering, nearest-peer querying, updates (including attribute tweaks), blocking and pruning.
+- Sample command-line entry point demonstrating peer filtering, geohash prefix queries, nearest-peer querying, updates (including attribute tweaks), blocking and pruning.
 - Unit tests covering radius-based, proximity-sorted, attribute-filtered, matching, update, blocking and pruning logic.
 
 ## Building
@@ -30,3 +30,4 @@ swift test
 - Integrate [libp2p](https://libp2p.io) for decentralised peer discovery and messaging.
 - Add geolocation fetching via CoreLocation on iOS.
 - Implement encrypted communication using CryptoKit.
+- Use geohash bucketing to index peers in a distributed hash table for efficient location-based lookups.

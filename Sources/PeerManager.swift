@@ -108,6 +108,14 @@ class PeerManager {
         }
     }
 
+    /// Returns peers whose geohash begins with the specified prefix. Useful for
+    /// coarse location-based grouping using geohash bucketing.
+    func peers(inGeohash prefix: String) -> [Peer] {
+        peerIndex.values.filter { peer in
+            !blocked.contains(peer.id) && peer.geohash.hasPrefix(prefix)
+        }
+    }
+
     /// Returns up to `limit` peers sorted by proximity to the provided location.
     /// Optional attribute filters can restrict the results to peers matching all
     /// specified key/value pairs.

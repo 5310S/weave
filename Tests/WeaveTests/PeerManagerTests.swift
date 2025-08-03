@@ -232,4 +232,21 @@ final class PeerManagerTests: XCTestCase {
 
         XCTAssertFalse(manager.connect(to: peer.id))
     }
+
+    func testGeohashEncoding() {
+        let sf = Peer(latitude: 37.7749, longitude: -122.4194)
+        XCTAssertEqual(sf.geohash, "9q8yyk8y")
+    }
+
+    func testPeersInGeohashPrefix() {
+        let manager = PeerManager()
+        let sf = Peer(latitude: 37.7749, longitude: -122.4194)
+        let la = Peer(latitude: 34.0522, longitude: -118.2437)
+        manager.add(sf)
+        manager.add(la)
+
+        let prefix = String(sf.geohash.prefix(5))
+        let results = manager.peers(inGeohash: prefix)
+        XCTAssertEqual(results, [sf])
+    }
 }
