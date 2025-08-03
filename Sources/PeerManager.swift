@@ -225,6 +225,7 @@ final class PeerManager: @unchecked Sendable {
         peers(inGeohash: prefix, matching: [:])
     }
 
+
     /// Returns peers in the specified geohash prefix that match all provided
     /// attribute filters.
     func peers(inGeohash prefix: String, matching filters: [String: String]) -> [Peer] {
@@ -234,6 +235,7 @@ final class PeerManager: @unchecked Sendable {
             return ids.compactMap { id in
                 guard let peer = peerIndex[id], !blocked.contains(id) else { return nil }
                 return filters.allSatisfy { k, v in peer.attributes[k] == v } ? peer : nil
+
             }
         }
     }
@@ -307,9 +309,11 @@ final class PeerManager: @unchecked Sendable {
         queue.sync(flags: .barrier) {
             peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
             blocked = blocked.filter { peerIndex[$0] != nil }
+
             liked = liked.filter { peerIndex[$0] != nil && !blocked.contains($0) }
             geohashIndex = Dictionary(grouping: peerIndex.values, by: { String($0.geohash.prefix(geohashPrefixLength)) })
                 .mapValues { Set($0.map { $0.id }) }
+
         }
 
     }

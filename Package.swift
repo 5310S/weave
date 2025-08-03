@@ -9,7 +9,7 @@ let package = Package(
         .executable(name: "weave", targets: ["weave"])
     ],
     dependencies: [
-        // TODO: Add libp2p dependency when available.
+        .package(url: "https://github.com/libp2p/swift-libp2p.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "2.7.0")
     ],
     targets: [
@@ -17,7 +17,9 @@ let package = Package(
         .executableTarget(
             name: "weave",
             dependencies: [
-                .product(name: "Crypto", package: "swift-crypto")
+                .product(name: "Crypto", package: "swift-crypto"),
+                // Once released, this product will expose the libp2p host implementation.
+                .product(name: "LibP2P", package: "swift-libp2p")
             ]),
         .testTarget(
             name: "WeaveTests",

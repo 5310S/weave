@@ -19,4 +19,11 @@ final class PeerTests: XCTestCase {
             }
         }
     }
+
+    func testPeersDifferingByLastSeenAreNotEqual() throws {
+        let baseID = UUID()
+        let first = try Peer(id: baseID, latitude: 0, longitude: 0, lastSeen: Date(timeIntervalSince1970: 0))
+        let second = try Peer(id: baseID, latitude: 0, longitude: 0, lastSeen: Date(timeIntervalSince1970: 10))
+        XCTAssertNotEqual(first, second)
+    }
 }
