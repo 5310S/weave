@@ -130,19 +130,22 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertFalse(manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
-    func testReaddingPeerUpdatesGeohashIndex() {
+
+    func testUpdateLocationRejectsInvalidCoordinates() {
         let manager = PeerManager()
-        let id = UUID()
-        let original = try! Peer(id: id, latitude: 0.0, longitude: 0.0)
-        manager.add(original)
-        let oldHash = original.geohash
+        let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+        manager.add(peer)
 
-        let moved = try! Peer(id: id, latitude: 45.0, longitude: 45.0)
-        manager.add(moved)
+        manager.updateLocation(id: peer.id, latitude: 100.0, longitude: 0.0)
+        var updated = manager.peer(id: peer.id)!
+        XCTAssertEqual(updated.latitude, 0.0)
+        XCTAssertEqual(updated.longitude, 0.0)
 
-        XCTAssertEqual(manager.peer(id: id), moved)
-        XCTAssertTrue(manager.peers(inGeohash: oldHash).isEmpty)
-        XCTAssertEqual(manager.peers(inGeohash: moved.geohash), [moved])
+        manager.updateLocation(id: peer.id, latitude: 0.0, longitude: 200.0)
+        updated = manager.peer(id: peer.id)!
+        XCTAssertEqual(updated.latitude, 0.0)
+        XCTAssertEqual(updated.longitude, 0.0)
+
     }
 
     func testUpdatingPeerAttributes() {
