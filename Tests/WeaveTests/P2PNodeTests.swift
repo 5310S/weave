@@ -246,4 +246,34 @@ final class P2PNodeTests: XCTestCase {
         await fulfillment(of: [expA], timeout: 1.0)
 
     }
+
+    func testErrorHandlerInvokedOnDecryptionFailure() async throws {
+        let keysA = Encryption.generateKeyPair()
+        let peerA = try Peer(publicKey: keysA.publicKey, latitude: 0, longitude: 0)
+        let keysB = Encryption.generateKeyPair()
+        let peerB = try Peer(publicKey: keysB.publicKey, latitude: 0, longitude: 0)
+
+        let hostA = StreamHost(selfPeer: peerA)
+        let hostB = StreamHost(selfPeer: peerB)
+        hostA.connect(to: hostB, as: peerB)
+        hostB.connect(to: hostA, as: peerA)
+
+        let nodeA = P2PNode(hostBuilder: { hostA })
+        let nodeB = P2PNode(hostBuilder: { hostB })
+
+        let expError = expectation(description: "NodeB error handler invoked")
+        await nodeB.setMessageHandler { _, _ in
+            XCTFail("Message handler should not be called")
+        }
+        await nodeB.setErrorHandler { _, _ in expError.fulfill() }
+
+        await nodeA.start()
+        await nodeB.start()
+
+        let streamAB = await nodeA.openStream(to: peerB)!
+        // Send unencrypted data which will fail decryption on nodeB
+        streamAB.write(Data("garbage".utf8))
+
+        await fulfillment(of: [expError], timeout: 1.0)
+    }
 }
