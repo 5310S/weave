@@ -17,36 +17,40 @@ public protocol DHT {
     func lookup(prefix: String) async -> [UUID]
 }
 
-/// Simple in-memory DHT implementation used for testing. This actor maintains
-/// a dictionary mapping full geohashes to the set of peer identifiers within
-/// that cell.
+/// Simple in-memory DHT implementation used for testing. This actor
+/// maintains a dictionary mapping geohash prefixes to the set of peer
+/// identifiers stored under that prefix. Peers are indexed under their full
+/// geohash as well as all prefixes, mirroring the behavior of the libp2p
+/// backed implementation.
 public actor InMemoryDHT: DHT {
     private var index: [String: Set<UUID>] = [:]
 
     public init() {}
 
     public func store(peerID: UUID, geohash: String) async {
-        var bucket = index[geohash] ?? Set<UUID>()
-        bucket.insert(peerID)
-        index[geohash] = bucket
+        for length in 1...geohash.count {
+            let key = String(geohash.prefix(length))
+            var bucket = index[key] ?? Set<UUID>()
+            bucket.insert(peerID)
+            index[key] = bucket
+        }
     }
 
     public func remove(peerID: UUID, geohash: String) async {
-        guard var bucket = index[geohash] else { return }
-        bucket.remove(peerID)
-        if bucket.isEmpty {
-            index.removeValue(forKey: geohash)
-        } else {
-            index[geohash] = bucket
+        for length in 1...geohash.count {
+            let key = String(geohash.prefix(length))
+            guard var bucket = index[key] else { continue }
+            bucket.remove(peerID)
+            if bucket.isEmpty {
+                index.removeValue(forKey: key)
+            } else {
+                index[key] = bucket
+            }
         }
     }
 
     public func lookup(prefix: String) async -> [UUID] {
-        index.reduce(into: [UUID]()) { result, entry in
-            if entry.key.hasPrefix(prefix) {
-                result.append(contentsOf: entry.value)
-            }
-        }
+        Array(index[prefix] ?? [])
     }
 }
 
