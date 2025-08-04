@@ -10,7 +10,7 @@ final class LocationIntegrationTests: XCTestCase {
         let peer = try Peer(latitude: 0.0, longitude: 0.0)
         await manager.add(peer)
 
-        let service = LocationService()
+        let service = CoreLocationService()
         service.onLocationUpdate = { lat, lon in
             Task {
                 await manager.updateLocation(id: peer.id, latitude: lat, longitude: lon)

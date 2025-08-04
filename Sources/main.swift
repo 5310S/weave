@@ -19,7 +19,7 @@ struct Main {
 
 #if canImport(CoreLocation)
         // Track the device's location and feed updates into the peer manager
-        let locationService = LocationService()
+        let locationService = CoreLocationService()
         locationService.onLocationUpdate = { lat, lon in
             Task {
                 await manager.updateLocation(id: me.id, latitude: lat, longitude: lon)
