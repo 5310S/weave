@@ -17,30 +17,30 @@ struct LibP2PHost: LibP2PHosting {
     }
 
     /// Start listening for connections.
-    func start() {
+    func start() throws {
         // Many libp2p operations return an EventLoopFuture. Waiting here keeps
         // the abstraction simple for callers.
-        _ = try? host.start().wait()
+        try host.start().wait()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
     /// network. Peers are expressed as multiaddrs in string form.
-    func bootstrap(peers: [String]) {
-        let addresses = peers.compactMap { try? Multiaddr($0) }
-        for address in addresses {
-            _ = try? host.bootstrap(to: address).wait()
+    func bootstrap(peers: [String]) throws {
+        for address in peers {
+            let addr = try Multiaddr(address)
+            try host.bootstrap(to: addr).wait()
         }
     }
 
     /// Enable NAT traversal via AutoNAT/UPnP so the node becomes reachable from
     /// outside the local network.
-    func enableNAT() {
-        _ = try? host.enableNAT().wait()
+    func enableNAT() throws {
+        try host.enableNAT().wait()
     }
 
     /// Shut down the host and release any associated resources.
-    func stop() {
-        _ = try? host.stop().wait()
+    func stop() throws {
+        try host.stop().wait()
     }
 
     enum HostError: Error {
@@ -91,8 +91,8 @@ private final class HostStream: LibP2PStream {
         self.stream = stream
     }
 
-    func write(_ data: Data) {
-        _ = try? stream.write(data).wait()
+    func write(_ data: Data) throws {
+        try stream.write(data).wait()
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
@@ -106,7 +106,7 @@ protocol LibP2PStream {
     /// The peer this stream is connected to.
     var peer: Peer { get }
     /// Send raw bytes over the stream.
-    func write(_ data: Data)
+    func write(_ data: Data) throws
     /// Register a callback for inbound bytes.
     func setDataHandler(_ handler: @escaping (Data) -> Void)
 }
@@ -114,13 +114,13 @@ protocol LibP2PStream {
 /// Abstraction over the underlying libp2p host so it can be mocked in tests.
 protocol LibP2PHosting {
     /// Start listening for connections and initialise any required services.
-    func start()
+    func start() throws
     /// Connect to a set of bootstrap peers to join the network.
-    func bootstrap(peers: [String])
+    func bootstrap(peers: [String]) throws
     /// Enable NAT traversal so the node is reachable from the public internet.
-    func enableNAT()
+    func enableNAT() throws
     /// Shut down the host and release any resources.
-    func stop()
+    func stop() throws
     /// Open a new stream to the given peer.
     func openStream(to peer: Peer) throws -> LibP2PStream
     /// Set a handler for incoming streams initiated by remote peers.
@@ -129,7 +129,7 @@ protocol LibP2PHosting {
 
 struct NoopLibP2PStream: LibP2PStream {
     let peer: Peer
-    func write(_ data: Data) {}
+    func write(_ data: Data) throws {}
     func setDataHandler(_ handler: @escaping (Data) -> Void) {}
 }
 
@@ -169,15 +169,26 @@ actor LibP2PNode {
         host.setStreamHandler { stream in
             Task { await self.handleIncoming(stream: stream) }
         }
-        host.start()
-        if !bootstrapPeers.isEmpty {
-            host.bootstrap(peers: bootstrapPeers)
+        do {
+            try host.start()
+            if !bootstrapPeers.isEmpty {
+                try host.bootstrap(peers: bootstrapPeers)
+            }
+        } catch {
+            print("Failed to start libp2p host: \(error)")
+            throw error
         }
     }
 
     /// Shut the host down and remove any handlers.
     func stop() {
-        host?.stop()
+        if let host = host {
+            do {
+                try host.stop()
+            } catch {
+                print("Failed to stop libp2p host: \(error)")
+            }
+        }
         host = nil
     }
 
@@ -199,7 +210,12 @@ actor LibP2PNode {
     /// Encode and send a message over the provided stream.
     func sendMessage(_ message: Message, over stream: LibP2PStream) throws {
         let data = try JSONEncoder().encode(message)
-        stream.write(data)
+        do {
+            try stream.write(data)
+        } catch {
+            print("Failed to write message to stream: \(error)")
+            throw error
+        }
     }
 
     /// Handles a newly opened incoming stream by registering a data handler.
@@ -281,11 +297,27 @@ actor P2PNode {
         host.setStreamHandler { stream in
             Task { await self.handleIncoming(stream: stream) }
         }
-        host.start()
-        if !bootstrapPeers.isEmpty {
-            host.bootstrap(peers: bootstrapPeers)
+
+        do {
+            try host.start()
+        } catch {
+            print("Failed to start host: \(error)")
+            throw error
         }
-        host.enableNAT()
+
+        if !bootstrapPeers.isEmpty {
+            do {
+                try host.bootstrap(peers: bootstrapPeers)
+            } catch {
+                print("Failed to bootstrap peers: \(error)")
+            }
+        }
+
+        do {
+            try host.enableNAT()
+        } catch {
+            print("Failed to enable NAT: \(error)")
+        }
 
         isRunning = true
     }
@@ -293,7 +325,13 @@ actor P2PNode {
     /// Stops the networking stack and cleans up resources by shutting down the host.
     func stop() {
         guard isRunning else { return }
-        host?.stop()
+        if let host = host {
+            do {
+                try host.stop()
+            } catch {
+                print("Failed to stop host: \(error)")
+            }
+        }
         host = nil
         isRunning = false
     }
@@ -325,7 +363,12 @@ actor P2PNode {
         let key = try sharedKey(with: stream.peer)
         let data = try JSONEncoder().encode(message)
         let encrypted = try Encryption.encrypt(data, using: key)
-        stream.write(encrypted)
+        do {
+            try stream.write(encrypted)
+        } catch {
+            print("Failed to send encrypted message: \(error)")
+            throw error
+        }
     }
 
     /// Encrypts `message` for the given peer using a shared secret.
