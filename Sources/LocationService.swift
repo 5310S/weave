@@ -8,6 +8,12 @@ protocol LocationServiceDelegate: AnyObject {
     func locationService(_ service: LocationService, didFailWithError error: Error)
 }
 
+/// Errors that can be emitted by ``LocationService``.
+enum LocationServiceError: Error {
+    case authorizationDenied
+    case authorizationRestricted
+}
+
 /// A simple wrapper around `CLLocationManager` that requests
 /// permission and forwards coordinate updates to its delegate or
 /// callback.
@@ -36,6 +42,14 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             manager.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways:
             manager.startUpdatingLocation()
+        case .denied:
+            let error = LocationServiceError.authorizationDenied
+            delegate?.locationService(self, didFailWithError: error)
+            onError?(error)
+        case .restricted:
+            let error = LocationServiceError.authorizationRestricted
+            delegate?.locationService(self, didFailWithError: error)
+            onError?(error)
         default:
             break
         }
@@ -55,8 +69,19 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
 
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        if status == .authorizedWhenInUse || status == .authorizedAlways {
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
             manager.startUpdatingLocation()
+        case .denied:
+            let error = LocationServiceError.authorizationDenied
+            delegate?.locationService(self, didFailWithError: error)
+            onError?(error)
+        case .restricted:
+            let error = LocationServiceError.authorizationRestricted
+            delegate?.locationService(self, didFailWithError: error)
+            onError?(error)
+        default:
+            break
         }
     }
 

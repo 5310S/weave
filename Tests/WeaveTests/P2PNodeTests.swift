@@ -13,16 +13,16 @@ final class P2PNodeTests: XCTestCase {
         func bootstrap(peers: [String]) { bootstrapped = peers }
         func enableNAT() { natEnabled = true }
         func stop() { stopCount += 1 }
-        func openStream(to peer: Peer) -> LibP2PStream { NoopLibP2PStream(peer: peer) }
+        func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
     }
 
-    func testStartBootstrapsAndEnablesNAT() async {
+    func testStartBootstrapsAndEnablesNAT() async throws {
         let mock = MockHost()
         let node = P2PNode(bootstrapPeers: ["1.2.3.4:4001"], hostBuilder: { mock })
 
         XCTAssertFalse(await node.isRunning)
-        await node.start()
+        try await node.start()
 
         XCTAssertTrue(await node.isRunning)
         XCTAssertEqual(mock.startCount, 1)
@@ -30,10 +30,10 @@ final class P2PNodeTests: XCTestCase {
         XCTAssertTrue(mock.natEnabled)
     }
 
-    func testStopShutsDownHost() async {
+    func testStopShutsDownHost() async throws {
         let mock = MockHost()
         let node = P2PNode(hostBuilder: { mock })
-        await node.start()
+        try await node.start()
         await node.stop()
 
         XCTAssertFalse(await node.isRunning)
@@ -87,6 +87,31 @@ final class P2PNodeTests: XCTestCase {
         _ = try node.send(message, to: peer)
         XCTAssertEqual(derivationCalls, 2)
 
+    }
+
+    func testInvalidateSharedKeyForcesDerivation() throws {
+        var derivationCalls = 0
+        let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
+            derivationCalls += 1
+            return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        })
+
+        let keys = Encryption.generateKeyPair()
+        let peer = try Peer(publicKey: keys.publicKey, latitude: 0, longitude: 0)
+        let message = Data("hi".utf8)
+
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        // Cached key should prevent additional derivations
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        node.invalidateSharedKey(for: peer.id)
+
+        // After invalidation, derivation should occur again
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 2)
     }
 
     func testCacheEvictsLeastRecentlyUsedPeer() throws {
@@ -155,7 +180,7 @@ final class P2PNodeTests: XCTestCase {
         func enableNAT() {}
         func stop() {}
 
-        func openStream(to peer: Peer) -> LibP2PStream {
+        func openStream(to peer: Peer) throws -> LibP2PStream {
             let local = MockStream(peer: peer)
             if let (remoteHost, _) = peers[peer.id] {
                 let remote = MockStream(peer: self.selfPeer)
@@ -198,20 +223,24 @@ final class P2PNodeTests: XCTestCase {
             XCTAssertEqual(String(decoding: message.payload, as: UTF8.self), "ping")
 
             XCTAssertEqual(peer.id, peerA.id)
-            Task { try? await nodeB.sendMessage(Data("pong".utf8), over: stream) }
+            Task {
+                if let s = try? await nodeB.openStream(to: peer) {
+                    try? await nodeB.sendMessage(Data("pong".utf8), over: s)
+                }
+            }
             expB.fulfill()
         }
 
-        await nodeA.start()
-        await nodeB.start()
+        try await nodeA.start()
+        try await nodeB.start()
 
-        let streamAB = await nodeA.openStream(to: peerB)!
+        let streamAB = try await nodeA.openStream(to: peerB)!
 
         let ping = Message(type: "ping", payload: Data("ping".utf8), metadata: nil)
         try await nodeA.sendMessage(ping, over: streamAB)
         await fulfillment(of: [expB], timeout: 1.0)
 
-        let streamBA = await nodeB.openStream(to: peerA)!
+        let streamBA = try await nodeB.openStream(to: peerA)!
         let pong = Message(type: "pong", payload: Data("pong".utf8), metadata: nil)
         try await nodeB.sendMessage(pong, over: streamBA)
         await fulfillment(of: [expA], timeout: 1.0)
