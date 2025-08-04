@@ -5,30 +5,25 @@ import CoreLocation
 
 final class CoreLocationServiceTests: XCTestCase {
     func testLocationUpdatesFeedPeerManager() async throws {
-        let expectation = expectation(description: "location update")
-        let service = CoreLocationService()
         let manager = PeerManager()
         let peer = try Peer(latitude: 0.0, longitude: 0.0)
         await manager.add(peer)
 
-        service.onLocationUpdate = { lat, lon in
-            Task {
-                await manager.updateLocation(id: peer.id, latitude: lat, longitude: lon)
-                expectation.fulfill()
-            }
-        }
+        // Service automatically updates the peer manager when coordinates change
+        let service = CoreLocationService(peerManager: manager, peerID: peer.id)
 
         // Simulate a location update
         let simulated = CLLocation(latitude: 50.0, longitude: 8.0)
         service.locationManager(CLLocationManager(), didUpdateLocations: [simulated])
 
-        waitForExpectations(timeout: 1.0)
+        // Allow asynchronous update to complete
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
         let updated = await manager.peer(id: peer.id)
         XCTAssertEqual(updated?.latitude, 50.0)
         XCTAssertEqual(updated?.longitude, 8.0)
 
         service.stop()
-        XCTAssertNil(service.onLocationUpdate)
     }
 
     func testErrorPropagation() {
