@@ -3,6 +3,46 @@ import Crypto
 
 #if canImport(LibP2P)
 import LibP2P
+
+/// Concrete implementation backed by the real `swift-libp2p` Host.
+struct LibP2PHost: LibP2PHosting {
+    /// Underlying libp2p host instance.
+    private let host: Host
+
+    init() {
+        // Build a default host using libp2p's builder which configures
+        // transports, muxers and security implementations suitable for most
+        // use cases.
+        self.host = try! HostBuilder().build()
+    }
+
+    /// Start listening for connections.
+    func start() {
+        // Many libp2p operations return an EventLoopFuture. Waiting here keeps
+        // the abstraction simple for callers.
+        _ = try? host.start().wait()
+    }
+
+    /// Connect to a list of bootstrap peers so the node can discover the wider
+    /// network. Peers are expressed as multiaddrs in string form.
+    func bootstrap(peers: [String]) {
+        let addresses = peers.compactMap { try? Multiaddr($0) }
+        for address in addresses {
+            _ = try? host.bootstrap(to: address).wait()
+        }
+    }
+
+    /// Enable NAT traversal via AutoNAT/UPnP so the node becomes reachable from
+    /// outside the local network.
+    func enableNAT() {
+        _ = try? host.enableNAT().wait()
+    }
+
+    /// Shut down the host and release any associated resources.
+    func stop() {
+        _ = try? host.stop().wait()
+    }
+}
 #endif
 
 /// Abstraction over the underlying libp2p host so it can be mocked in tests.
@@ -57,8 +97,13 @@ actor P2PNode {
     private let keyDerivation: (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey
 
     init(bootstrapPeers: [String] = [],
-
-         hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() },
+         hostBuilder: @escaping () -> LibP2PHosting = {
+#if canImport(LibP2P)
+            LibP2PHost()
+#else
+            NoopLibP2PHost()
+#endif
+         },
          keyDerivation: @escaping (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey = Encryption.deriveSharedSecret) {
 
         self.bootstrapPeers = bootstrapPeers
