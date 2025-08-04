@@ -9,11 +9,11 @@ struct LibP2PHost: LibP2PHosting {
     /// Underlying libp2p host instance.
     private let host: Host
 
-    init() {
+    init() throws {
         // Build a default host using libp2p's builder which configures
         // transports, muxers and security implementations suitable for most
         // use cases.
-        self.host = try! HostBuilder().build()
+        self.host = try HostBuilder().build()
     }
 
     /// Start listening for connections.
@@ -43,13 +43,20 @@ struct LibP2PHost: LibP2PHosting {
         _ = try? host.stop().wait()
     }
 
+    enum HostError: Error {
+        case missingPeerAddress
+    }
+
     /// Open a new stream to the given peer.
-    func openStream(to peer: Peer) -> LibP2PStream {
-        // Construct a multiaddr from the peer's address and port. If either is
-        // missing, this will trap which is acceptable for now as the caller is
-        // expected to provide fully resolved peers when opening streams.
-        let addr = try! Multiaddr("/ip4/\(peer.address!)/tcp/\(peer.port!)")
-        let stream = try! host.openStream(to: addr).wait()
+    func openStream(to peer: Peer) throws -> LibP2PStream {
+        // Construct a multiaddr from the peer's address and port. Throw if
+        // either is missing as callers are expected to provide fully resolved
+        // peers when opening streams.
+        guard let address = peer.address, let port = peer.port else {
+            throw HostError.missingPeerAddress
+        }
+        let addr = try Multiaddr("/ip4/\(address)/tcp/\(port)")
+        let stream = try host.openStream(to: addr).wait()
         return HostStream(peer: peer, stream: stream)
     }
 
@@ -62,8 +69,9 @@ struct LibP2PHost: LibP2PHosting {
             let remoteAddr = stream.connection.remoteAddress
             let ip = remoteAddr.ipAddress ?? "0.0.0.0"
             let port = UInt16(remoteAddr.port ?? 0)
-            let peer = try! Peer(address: ip, port: port, latitude: 0, longitude: 0)
-            handler(HostStream(peer: peer, stream: stream))
+            if let peer = try? Peer(address: ip, port: port, latitude: 0, longitude: 0) {
+                handler(HostStream(peer: peer, stream: stream))
+            }
         }
     }
 }
@@ -109,7 +117,7 @@ protocol LibP2PHosting {
     /// Shut down the host and release any resources.
     func stop()
     /// Open a new stream to the given peer.
-    func openStream(to peer: Peer) -> LibP2PStream
+    func openStream(to peer: Peer) throws -> LibP2PStream
     /// Set a handler for incoming streams initiated by remote peers.
     func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void)
 }
@@ -120,7 +128,7 @@ struct NoopLibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) {}
     func enableNAT() {}
     func stop() {}
-    func openStream(to peer: Peer) -> LibP2PStream { NoopLibP2PStream(peer: peer) }
+    func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
     func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
 }
 
@@ -137,7 +145,7 @@ actor P2PNode {
     /// Addresses of peers used to join the wider network.
     private let bootstrapPeers: [String]
     /// Factory used to create the libp2p host. Injected to allow mocking in tests.
-    private let hostBuilder: @Sendable () -> LibP2PHosting
+    private let hostBuilder: @Sendable () throws -> LibP2PHosting
     /// The underlying libp2p host instance once started.
     private var host: LibP2PHosting?
     /// Indicates whether the node is actively running.
@@ -167,11 +175,11 @@ actor P2PNode {
 
 
     init(bootstrapPeers: [String] = [],
-         hostBuilder: @escaping () -> LibP2PHosting = {
+         hostBuilder: @escaping () throws -> LibP2PHosting = {
 #if canImport(LibP2P)
-            LibP2PHost()
+            return try LibP2PHost()
 #else
-            NoopLibP2PHost()
+            return NoopLibP2PHost()
 #endif
          },
          keyDerivation: @escaping (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey = Encryption.deriveSharedSecret) {
@@ -187,10 +195,10 @@ actor P2PNode {
 
     /// Starts the networking stack by creating a libp2p host, performing
     /// bootstrap against known peers and enabling NAT traversal.
-    func start() {
+    func start() throws {
         guard !isRunning else { return }
 
-        let host = hostBuilder()
+        let host = try hostBuilder()
         self.host = host
         host.setStreamHandler { stream in
             Task { await self.handleIncoming(stream: stream) }
@@ -220,8 +228,9 @@ actor P2PNode {
     }
 
     /// Opens a new libp2p stream to the given peer.
-    func openStream(to peer: Peer) -> LibP2PStream? {
-        guard let stream = host?.openStream(to: peer) else { return nil }
+    func openStream(to peer: Peer) throws -> LibP2PStream? {
+        guard let host = host else { return nil }
+        let stream = try host.openStream(to: peer)
         stream.setDataHandler { data in
             Task { await self.handleIncomingData(data, over: stream) }
         }
@@ -298,6 +307,11 @@ actor P2PNode {
         stream.setDataHandler { data in
             Task { await self.handleIncomingData(data, over: stream) }
         }
+    }
+
+    /// Convenience wrapper that forwards incoming data to the peer-based handler.
+    private func handleIncomingData(_ data: Data, over stream: LibP2PStream) async {
+        handleIncomingData(data, from: stream.peer)
     }
 
 
