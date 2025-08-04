@@ -164,6 +164,8 @@ actor P2PNode {
 
     /// Handler invoked for decrypted inbound messages.
     private var messageHandler: (@Sendable (Message, Peer) -> Void)?
+    /// Handler invoked when decryption or decoding fails.
+    private var errorHandler: (@Sendable (Error, Peer) -> Void)?
 
 
     init(bootstrapPeers: [String] = [],
@@ -217,6 +219,11 @@ actor P2PNode {
     func setMessageHandler(_ handler: @escaping @Sendable (Message, Peer) -> Void) {
 
         messageHandler = handler
+    }
+
+    /// Register a callback to receive errors for failed inbound messages.
+    func setErrorHandler(_ handler: @escaping @Sendable (Error, Peer) -> Void) {
+        errorHandler = handler
     }
 
     /// Opens a new libp2p stream to the given peer.
@@ -300,14 +307,24 @@ actor P2PNode {
         }
     }
 
+    /// Convenience wrapper that extracts the peer from the stream.
+    private func handleIncomingData(_ data: Data, over stream: LibP2PStream) {
+        handleIncomingData(data, from: stream.peer)
+    }
 
     /// Decrypts data from a peer, decodes it to a `Message` and forwards it to the registered handler.
     private func handleIncomingData(_ data: Data, from peer: Peer) {
         guard let handler = messageHandler else { return }
-        if let decrypted = try? receive(data, from: peer),
-           let message = try? JSONDecoder().decode(Message.self, from: decrypted) {
+        do {
+            let decrypted = try receive(data, from: peer)
+            let message = try JSONDecoder().decode(Message.self, from: decrypted)
             handler(message, peer)
-
+        } catch {
+            if let errorHandler {
+                errorHandler(error, peer)
+            } else {
+                print("Failed to handle incoming data from \(peer.id): \(error)")
+            }
         }
     }
 }
