@@ -42,6 +42,49 @@ struct LibP2PHost: LibP2PHosting {
     func stop() {
         _ = try? host.stop().wait()
     }
+
+    /// Open a new stream to the given peer.
+    func openStream(to peer: Peer) -> LibP2PStream {
+        // Construct a multiaddr from the peer's address and port. If either is
+        // missing, this will trap which is acceptable for now as the caller is
+        // expected to provide fully resolved peers when opening streams.
+        let addr = try! Multiaddr("/ip4/\(peer.address!)/tcp/\(peer.port!)")
+        let stream = try! host.openStream(to: addr).wait()
+        return HostStream(peer: peer, stream: stream)
+    }
+
+    /// Register a handler for incoming streams initiated by remote peers.
+    func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {
+        host.setStreamHandler { stream in
+            // Derive a minimal `Peer` representation from the remote
+            // connection. The remote address is extracted if available, but any
+            // location information is left at defaults.
+            let remoteAddr = stream.connection.remoteAddress
+            let ip = remoteAddr.ipAddress ?? "0.0.0.0"
+            let port = UInt16(remoteAddr.port ?? 0)
+            let peer = try! Peer(address: ip, port: port, latitude: 0, longitude: 0)
+            handler(HostStream(peer: peer, stream: stream))
+        }
+    }
+}
+
+/// Wrapper around libp2p's `Stream` type to conform to `LibP2PStream`.
+private final class HostStream: LibP2PStream {
+    let peer: Peer
+    private let stream: Stream
+
+    init(peer: Peer, stream: Stream) {
+        self.peer = peer
+        self.stream = stream
+    }
+
+    func write(_ data: Data) {
+        _ = try? stream.write(data).wait()
+    }
+
+    func setDataHandler(_ handler: @escaping (Data) -> Void) {
+        stream.setDataHandler(handler)
+    }
 }
 #endif
 
@@ -118,8 +161,10 @@ actor P2PNode {
     /// derivation calls.
     private let keyDerivation: (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey
 
+
     /// Handler invoked for decrypted inbound messages.
     private var messageHandler: (@Sendable (Message, Peer) -> Void)?
+
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () -> LibP2PHosting = {
@@ -168,13 +213,19 @@ actor P2PNode {
     }
 
     /// Register a callback to receive decrypted messages from peers.
+
     func setMessageHandler(_ handler: @escaping @Sendable (Message, Peer) -> Void) {
+
         messageHandler = handler
     }
 
     /// Opens a new libp2p stream to the given peer.
     func openStream(to peer: Peer) -> LibP2PStream? {
-        host?.openStream(to: peer)
+        guard let stream = host?.openStream(to: peer) else { return nil }
+        stream.setDataHandler { data in
+            Task { await self.handleIncomingData(data, over: stream) }
+        }
+        return stream
     }
 
     /// Encodes, encrypts and sends a message over an existing stream.
@@ -245,9 +296,10 @@ actor P2PNode {
     /// Handles a newly opened incoming stream.
     private func handleIncoming(stream: LibP2PStream) {
         stream.setDataHandler { data in
-            Task { await self.handleIncomingData(data, from: stream.peer) }
+            Task { await self.handleIncomingData(data, over: stream) }
         }
     }
+
 
     /// Decrypts data from a peer, decodes it to a `Message` and forwards it to the registered handler.
     private func handleIncomingData(_ data: Data, from peer: Peer) {
@@ -255,6 +307,7 @@ actor P2PNode {
         if let decrypted = try? receive(data, from: peer),
            let message = try? JSONDecoder().decode(Message.self, from: decrypted) {
             handler(message, peer)
+
         }
     }
 }

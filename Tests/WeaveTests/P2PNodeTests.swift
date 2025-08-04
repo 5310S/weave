@@ -169,7 +169,7 @@ final class P2PNodeTests: XCTestCase {
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) { self.handler = handler }
     }
 
-    func testRoundTripMessageBetweenTwoNodes() async throws {
+    func testStreamDeliversDataBothWays() async throws {
         let keysA = Encryption.generateKeyPair()
         let peerA = try Peer(publicKey: keysA.publicKey, latitude: 0, longitude: 0)
         let keysB = Encryption.generateKeyPair()
@@ -183,8 +183,9 @@ final class P2PNodeTests: XCTestCase {
         let nodeA = P2PNode(hostBuilder: { hostA })
         let nodeB = P2PNode(hostBuilder: { hostB })
 
-        let expA = expectation(description: "NodeA received")
-        let expB = expectation(description: "NodeB received")
+        let expA = expectation(description: "NodeA received pong")
+        let expB = expectation(description: "NodeB received ping")
+
 
         await nodeA.setMessageHandler { message, peer in
             XCTAssertEqual(message.type, "pong")
@@ -195,7 +196,9 @@ final class P2PNodeTests: XCTestCase {
         await nodeB.setMessageHandler { message, peer in
             XCTAssertEqual(message.type, "ping")
             XCTAssertEqual(String(decoding: message.payload, as: UTF8.self), "ping")
+
             XCTAssertEqual(peer.id, peerA.id)
+            Task { try? await nodeB.sendMessage(Data("pong".utf8), over: stream) }
             expB.fulfill()
         }
 
@@ -203,6 +206,7 @@ final class P2PNodeTests: XCTestCase {
         await nodeB.start()
 
         let streamAB = await nodeA.openStream(to: peerB)!
+
         let ping = Message(type: "ping", payload: Data("ping".utf8), metadata: nil)
         try await nodeA.sendMessage(ping, over: streamAB)
         await fulfillment(of: [expB], timeout: 1.0)
@@ -211,5 +215,6 @@ final class P2PNodeTests: XCTestCase {
         let pong = Message(type: "pong", payload: Data("pong".utf8), metadata: nil)
         try await nodeB.sendMessage(pong, over: streamBA)
         await fulfillment(of: [expA], timeout: 1.0)
+
     }
 }
