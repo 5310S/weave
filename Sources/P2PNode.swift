@@ -5,6 +5,16 @@ import Crypto
 import LibP2P
 #endif
 
+/// A bidirectional libp2p stream.
+protocol LibP2PStream {
+    /// The peer this stream is connected to.
+    var peer: Peer { get }
+    /// Send raw bytes over the stream.
+    func write(_ data: Data)
+    /// Register a callback for inbound bytes.
+    func setDataHandler(_ handler: @escaping (Data) -> Void)
+}
+
 /// Abstraction over the underlying libp2p host so it can be mocked in tests.
 protocol LibP2PHosting {
     /// Start listening for connections and initialise any required services.
@@ -15,6 +25,10 @@ protocol LibP2PHosting {
     func enableNAT()
     /// Shut down the host and release any resources.
     func stop()
+    /// Open a new stream to the given peer.
+    func openStream(to peer: Peer) -> LibP2PStream
+    /// Set a handler for incoming streams initiated by remote peers.
+    func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void)
 }
 
 /// Default no-op implementation used until a real libp2p host is wired in.
@@ -23,6 +37,14 @@ struct NoopLibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) {}
     func enableNAT() {}
     func stop() {}
+    func openStream(to peer: Peer) -> LibP2PStream { NoopLibP2PStream(peer: peer) }
+    func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
+}
+
+struct NoopLibP2PStream: LibP2PStream {
+    let peer: Peer
+    func write(_ data: Data) {}
+    func setDataHandler(_ handler: @escaping (Data) -> Void) {}
 }
 
 /// A networking node backed by a libp2p host.
@@ -56,6 +78,9 @@ actor P2PNode {
     /// derivation calls.
     private let keyDerivation: (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey
 
+    /// Handler invoked for decrypted inbound messages.
+    private var messageHandler: (@Sendable (Data, Peer) -> Void)?
+
     init(bootstrapPeers: [String] = [],
 
          hostBuilder: @escaping () -> LibP2PHosting = { NoopLibP2PHost() },
@@ -77,7 +102,9 @@ actor P2PNode {
 
         let host = hostBuilder()
         self.host = host
-
+        host.setStreamHandler { stream in
+            Task { await self.handleIncoming(stream: stream) }
+        }
         host.start()
         if !bootstrapPeers.isEmpty {
             host.bootstrap(peers: bootstrapPeers)
@@ -93,6 +120,22 @@ actor P2PNode {
         host?.stop()
         host = nil
         isRunning = false
+    }
+
+    /// Register a callback to receive decrypted messages from peers.
+    func setMessageHandler(_ handler: @escaping @Sendable (Data, Peer) -> Void) {
+        messageHandler = handler
+    }
+
+    /// Opens a new libp2p stream to the given peer.
+    func openStream(to peer: Peer) -> LibP2PStream? {
+        host?.openStream(to: peer)
+    }
+
+    /// Encrypts and sends a message over an existing stream.
+    func sendMessage(_ message: Data, over stream: LibP2PStream) throws {
+        let encrypted = try send(message, to: stream.peer)
+        stream.write(encrypted)
     }
 
     /// Encrypts `message` for the given peer using a shared secret.
@@ -151,6 +194,21 @@ actor P2PNode {
 
     enum P2PError: Error {
         case missingPeerPublicKey
+    }
+
+    /// Handles a newly opened incoming stream.
+    private func handleIncoming(stream: LibP2PStream) {
+        stream.setDataHandler { data in
+            Task { await self.handleIncomingData(data, from: stream.peer) }
+        }
+    }
+
+    /// Decrypts data from a peer and forwards it to the registered handler.
+    private func handleIncomingData(_ data: Data, from peer: Peer) {
+        guard let handler = messageHandler else { return }
+        if let decrypted = try? receive(data, from: peer) {
+            handler(decrypted, peer)
+        }
     }
 }
 
