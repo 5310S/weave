@@ -43,6 +43,24 @@ enum Encryption {
         return try AES.GCM.open(box, using: key)
     }
 
+    /// Encrypts message data for a peer by deriving a shared secret
+    /// using the caller's private key and the peer's public key.
+    static func encryptMessage(_ message: Data,
+                               from privateKey: Curve25519.KeyAgreement.PrivateKey,
+                               to peerPublicKey: Data) throws -> Data {
+        let key = try deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        return try encrypt(message, using: key)
+    }
+
+    /// Decrypts message data sent by a peer using the receiver's private key
+    /// and the sender's public key to derive the shared secret.
+    static func decryptMessage(_ message: Data,
+                               with privateKey: Curve25519.KeyAgreement.PrivateKey,
+                               senderPublicKey: Data) throws -> Data {
+        let key = try deriveSharedSecret(privateKey: privateKey, peerPublicKey: senderPublicKey)
+        return try decrypt(message, using: key)
+    }
+
     enum EncryptionError: Error {
         case invalidSealedBox
     }

@@ -28,5 +28,14 @@ final class EncryptionTests: XCTestCase {
         let decrypted = try await bobNode.receive(encrypted, from: alicePeer)
         XCTAssertEqual(message, decrypted)
     }
+
+    func testMessageEncryptionRoundTrip() throws {
+        let alice = Encryption.generateKeyPair()
+        let bob = Encryption.generateKeyPair()
+        let original = Message(type: "greet", payload: Data("hi".utf8), metadata: nil)
+        let encrypted = try original.encrypted(from: alice.privateKey, to: bob.publicKey)
+        let decoded = try Message.decrypted(encrypted, with: bob.privateKey, senderPublicKey: alice.publicKey)
+        XCTAssertEqual(original, decoded)
+    }
 }
 
