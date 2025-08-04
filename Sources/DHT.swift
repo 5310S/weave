@@ -65,15 +65,19 @@ public actor LibP2PDHT: DHT {
     /// integrating with an existing libp2p node. If omitted a fresh host is
     /// constructed using libp2p's default `HostBuilder` and started
     /// automatically.
-    public init(host: Host? = nil) {
+    public init(host: Host? = nil) throws {
         if let host {
             self.host = host
             self.kademlia = host.kademlia
         } else {
-            let built = try! HostBuilder().build()
-            _ = try? built.start().wait()
-            self.host = built
-            self.kademlia = built.kademlia
+            do {
+                let built = try HostBuilder().build()
+                _ = try built.start().wait()
+                self.host = built
+                self.kademlia = built.kademlia
+            } catch {
+                throw error
+            }
         }
     }
 
