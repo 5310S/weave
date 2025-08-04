@@ -3,8 +3,8 @@ import XCTest
 
 final class LibP2PIntegrationTests: XCTestCase {
     func testPeerDiscoveryAcrossDHT() async throws {
-        let dhtA = LibP2PDHT()
-        let dhtB = LibP2PDHT()
+        let dhtA = try LibP2PDHT()
+        let dhtB = try LibP2PDHT()
         // Connect the DHT instances so stored values propagate
         for addr in dhtA.listenAddresses { dhtB.bootstrap(to: addr) }
         for addr in dhtB.listenAddresses { dhtA.bootstrap(to: addr) }

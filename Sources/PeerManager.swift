@@ -18,7 +18,11 @@ actor PeerManager {
             self.dht = dht
         } else {
 #if canImport(LibP2P)
-            self.dht = LibP2PDHT()
+            if let libp2p = try? LibP2PDHT() {
+                self.dht = libp2p
+            } else {
+                self.dht = InMemoryDHT()
+            }
 #else
             self.dht = InMemoryDHT()
 #endif
