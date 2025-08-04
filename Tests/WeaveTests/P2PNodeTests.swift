@@ -13,6 +13,8 @@ final class P2PNodeTests: XCTestCase {
         func bootstrap(peers: [String]) { bootstrapped = peers }
         func enableNAT() { natEnabled = true }
         func stop() { stopCount += 1 }
+        func openStream(to peer: Peer) -> LibP2PStream { NoopLibP2PStream(peer: peer) }
+        func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
     }
 
     func testStartBootstrapsAndEnablesNAT() async {
@@ -122,5 +124,88 @@ final class P2PNodeTests: XCTestCase {
         // peers[0] should still be cached
         _ = try node.send(message, to: peers[0])
         XCTAssertEqual(derivationCalls, 102)
+    }
+
+    // MARK: - Stream based messaging
+
+    /// Mock stream used for simulating libp2p streams in tests.
+    final class MockStream: LibP2PStream {
+        let peer: Peer
+        var dataHandler: ((Data) -> Void)?
+        weak var remote: MockStream?
+
+        init(peer: Peer) { self.peer = peer }
+
+        func write(_ data: Data) { remote?.dataHandler?(data) }
+        func setDataHandler(_ handler: @escaping (Data) -> Void) { dataHandler = handler }
+    }
+
+    /// Mock host capable of opening streams to connected peers.
+    final class StreamHost: LibP2PHosting {
+        let selfPeer: Peer
+        var peers: [UUID: (host: StreamHost, peer: Peer)] = [:]
+        var handler: ((LibP2PStream) -> Void)?
+
+        init(selfPeer: Peer) { self.selfPeer = selfPeer }
+
+        func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
+
+        func start() {}
+        func bootstrap(peers: [String]) {}
+        func enableNAT() {}
+        func stop() {}
+
+        func openStream(to peer: Peer) -> LibP2PStream {
+            let local = MockStream(peer: peer)
+            if let (remoteHost, _) = peers[peer.id] {
+                let remote = MockStream(peer: self.selfPeer)
+                local.remote = remote
+                remote.remote = local
+                remoteHost.handler?(remote)
+            }
+            return local
+        }
+
+        func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) { self.handler = handler }
+    }
+
+    func testRoundTripMessageBetweenTwoNodes() async throws {
+        let keysA = Encryption.generateKeyPair()
+        let peerA = try Peer(publicKey: keysA.publicKey, latitude: 0, longitude: 0)
+        let keysB = Encryption.generateKeyPair()
+        let peerB = try Peer(publicKey: keysB.publicKey, latitude: 0, longitude: 0)
+
+        let hostA = StreamHost(selfPeer: peerA)
+        let hostB = StreamHost(selfPeer: peerB)
+        hostA.connect(to: hostB, as: peerB)
+        hostB.connect(to: hostA, as: peerA)
+
+        let nodeA = P2PNode(hostBuilder: { hostA })
+        let nodeB = P2PNode(hostBuilder: { hostB })
+
+        let expA = expectation(description: "NodeA received")
+        let expB = expectation(description: "NodeB received")
+
+        await nodeA.setMessageHandler { data, peer in
+            XCTAssertEqual(String(decoding: data, as: UTF8.self), "pong")
+            XCTAssertEqual(peer.id, peerB.id)
+            expA.fulfill()
+        }
+        await nodeB.setMessageHandler { data, peer in
+            XCTAssertEqual(String(decoding: data, as: UTF8.self), "ping")
+            XCTAssertEqual(peer.id, peerA.id)
+            expB.fulfill()
+        }
+
+        await nodeA.start()
+        await nodeB.start()
+
+        let streamAB = await nodeA.openStream(to: peerB)!
+        try await nodeA.sendMessage(Data("ping".utf8), over: streamAB)
+        await fulfillment(of: [expB], timeout: 1.0)
+
+        let streamBA = await nodeB.openStream(to: peerA)!
+        try await nodeB.sendMessage(Data("pong".utf8), over: streamBA)
+        await fulfillment(of: [expA], timeout: 1.0)
     }
 }
