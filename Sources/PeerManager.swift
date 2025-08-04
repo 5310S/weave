@@ -10,8 +10,19 @@ actor PeerManager {
     private var liked: Set<UUID> = []
     private let dht: any DHT
 
-    init(dht: any DHT = InMemoryDHT()) {
-        self.dht = dht
+    /// Creates a new manager. When no explicit DHT is provided a libp2p-backed
+    /// implementation is used if available, falling back to an in-memory table
+    /// for testing and platforms without libp2p.
+    init(dht: (any DHT)? = nil) {
+        if let dht {
+            self.dht = dht
+        } else {
+#if canImport(LibP2P)
+            self.dht = LibP2PDHT()
+#else
+            self.dht = InMemoryDHT()
+#endif
+        }
     }
 
     /// Marks a peer as blocked, excluding it from discovery APIs.
