@@ -89,6 +89,31 @@ final class P2PNodeTests: XCTestCase {
 
     }
 
+    func testInvalidateSharedKeyForcesDerivation() throws {
+        var derivationCalls = 0
+        let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
+            derivationCalls += 1
+            return try Encryption.deriveSharedSecret(privateKey: privateKey, peerPublicKey: peerPublicKey)
+        })
+
+        let keys = Encryption.generateKeyPair()
+        let peer = try Peer(publicKey: keys.publicKey, latitude: 0, longitude: 0)
+        let message = Data("hi".utf8)
+
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        // Cached key should prevent additional derivations
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 1)
+
+        node.invalidateSharedKey(for: peer.id)
+
+        // After invalidation, derivation should occur again
+        _ = try node.send(message, to: peer)
+        XCTAssertEqual(derivationCalls, 2)
+    }
+
     func testCacheEvictsLeastRecentlyUsedPeer() throws {
         var derivationCalls = 0
         let node = P2PNode(keyDerivation: { privateKey, peerPublicKey in
