@@ -3,10 +3,11 @@ import Foundation
 @main
 struct Main {
     static func main() async {
-        // Demonstration of using the PeerManager alongside a placeholder
-        // networking node that will eventually speak libp2p.
-        let node = P2PNode(bootstrapPeers: ["bootstrap.weave.example:4001"])
-        await node.start()
+        // Demonstration of using the PeerManager alongside a libp2p-backed
+        // networking node. The node bootstraps to a well known peer so it can
+        // discover the rest of the network as soon as the app launches.
+        let node = LibP2PNode(bootstrapPeers: ["bootstrap.weave.example:4001"])
+        try? await node.start()
 
         let manager = PeerManager()
 

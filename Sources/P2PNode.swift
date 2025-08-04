@@ -138,6 +138,95 @@ struct NoopLibP2PStream: LibP2PStream {
     func setDataHandler(_ handler: @escaping (Data) -> Void) {}
 }
 
+/// Minimal wrapper around a libp2p host that exposes basic networking
+/// behaviour. This type is responsible for bootstrapping the host into the
+/// network, opening streams to other peers and decoding inbound messages. It
+/// purposefully omits any of the encryption or peer caching logic found in the
+/// higher level `P2PNode` actor so it can be used in simpler scenarios or when
+/// writing integration tests against the real libp2p implementation.
+actor LibP2PNode {
+    /// Known peers used to discover the wider network.
+    private let bootstrapPeers: [String]
+    /// Factory closure producing a host instance. Injected to allow mocking.
+    private let hostBuilder: @Sendable () throws -> LibP2PHosting
+    /// Underlying host once started.
+    private var host: LibP2PHosting?
+    /// Callback invoked for each successfully decoded inbound message.
+    private var messageHandler: (@Sendable (Message, Peer) -> Void)?
+
+    init(bootstrapPeers: [String] = [],
+         hostBuilder: @escaping () throws -> LibP2PHosting = {
+#if canImport(LibP2P)
+            return try LibP2PHost()
+#else
+            return NoopLibP2PHost()
+#endif
+         }) {
+        self.bootstrapPeers = bootstrapPeers
+        self.hostBuilder = hostBuilder
+    }
+
+    /// Start the underlying host and bootstrap to the configured peers. A
+    /// stream handler is registered so incoming messages are automatically
+    /// decoded and forwarded to the registered message handler.
+    func start() throws {
+        guard host == nil else { return }
+
+        let host = try hostBuilder()
+        self.host = host
+
+        host.setStreamHandler { stream in
+            Task { await self.handleIncoming(stream: stream) }
+        }
+        host.start()
+        if !bootstrapPeers.isEmpty {
+            host.bootstrap(peers: bootstrapPeers)
+        }
+    }
+
+    /// Shut the host down and remove any handlers.
+    func stop() {
+        host?.stop()
+        host = nil
+    }
+
+    /// Register a callback to receive decoded messages from remote peers.
+    func setMessageHandler(_ handler: @escaping @Sendable (Message, Peer) -> Void) {
+        messageHandler = handler
+    }
+
+    /// Open a new stream to the given peer.
+    func openStream(to peer: Peer) throws -> LibP2PStream? {
+        guard let host = host else { return nil }
+        let stream = try host.openStream(to: peer)
+        stream.setDataHandler { data in
+            Task { await self.handleIncomingData(data, from: stream.peer) }
+        }
+        return stream
+    }
+
+    /// Encode and send a message over the provided stream.
+    func sendMessage(_ message: Message, over stream: LibP2PStream) throws {
+        let data = try JSONEncoder().encode(message)
+        stream.write(data)
+    }
+
+    /// Handles a newly opened incoming stream by registering a data handler.
+    private func handleIncoming(stream: LibP2PStream) {
+        stream.setDataHandler { data in
+            Task { await self.handleIncomingData(data, from: stream.peer) }
+        }
+    }
+
+    /// Decode incoming data and forward to the registered handler if available.
+    private func handleIncomingData(_ data: Data, from peer: Peer) {
+        guard let handler = messageHandler else { return }
+        if let message = try? JSONDecoder().decode(Message.self, from: data) {
+            handler(message, peer)
+        }
+    }
+}
+
 /// A networking node backed by a libp2p host.
 /// The node is initialised with a list of bootstrap peers and is responsible
 /// for starting and stopping the underlying host.
