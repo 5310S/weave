@@ -3,10 +3,10 @@ import XCTest
 import CoreLocation
 @testable import weave
 
-final class LocationServiceTests: XCTestCase {
+final class CoreLocationServiceTests: XCTestCase {
     func testLocationUpdatesFeedPeerManager() async throws {
         let expectation = expectation(description: "location update")
-        let service = LocationService()
+        let service = CoreLocationService()
         let manager = PeerManager()
         let peer = try Peer(latitude: 0.0, longitude: 0.0)
         await manager.add(peer)
@@ -34,14 +34,14 @@ final class LocationServiceTests: XCTestCase {
     func testErrorPropagation() {
         let delegateExpectation = expectation(description: "delegate error")
         let closureExpectation = expectation(description: "closure error")
-        let service = LocationService()
+        let service = CoreLocationService()
 
         class Delegate: LocationServiceDelegate {
             var expectation: XCTestExpectation?
 
-            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+            func locationService(_ service: CoreLocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
 
-            func locationService(_ service: LocationService, didFailWithError error: Error) {
+            func locationService(_ service: CoreLocationService, didFailWithError error: Error) {
                 expectation?.fulfill()
             }
         }
@@ -64,14 +64,14 @@ final class LocationServiceTests: XCTestCase {
         delegateExpectation.expectedFulfillmentCount = 2
         let closureExpectation = expectation(description: "closure error")
         closureExpectation.expectedFulfillmentCount = 2
-        let service = LocationService()
+        let service = CoreLocationService()
 
         class Delegate: LocationServiceDelegate {
             var expectation: XCTestExpectation?
 
-            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+            func locationService(_ service: CoreLocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
 
-            func locationService(_ service: LocationService, didFailWithError error: Error) {
+            func locationService(_ service: CoreLocationService, didFailWithError error: Error) {
                 expectation?.fulfill()
             }
         }
@@ -90,11 +90,11 @@ final class LocationServiceTests: XCTestCase {
     }
 
     func testStopClearsDelegateAndClosures() {
-        let service = LocationService()
+        let service = CoreLocationService()
 
         class Delegate: LocationServiceDelegate {
-            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
-            func locationService(_ service: LocationService, didFailWithError error: Error) {}
+            func locationService(_ service: CoreLocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+            func locationService(_ service: CoreLocationService, didFailWithError error: Error) {}
         }
 
         let delegate = Delegate()
@@ -110,7 +110,7 @@ final class LocationServiceTests: XCTestCase {
     }
 
     func testDeinitClearsManagerDelegate() {
-        var service: LocationService? = LocationService()
+        var service: CoreLocationService? = CoreLocationService()
 
         let mirror = Mirror(reflecting: service as Any)
         guard let manager = mirror.children.first(where: { $0.label == "manager" })?.value as? CLLocationManager else {

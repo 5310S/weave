@@ -1,14 +1,17 @@
 #if canImport(CoreLocation)
 import Foundation
 import CoreLocation
+#if canImport(Combine)
+import Combine
+#endif
 
 /// Delegate protocol to receive location updates and errors.
 protocol LocationServiceDelegate: AnyObject {
-    func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double)
-    func locationService(_ service: LocationService, didFailWithError error: Error)
+    func locationService(_ service: CoreLocationService, didUpdateLatitude latitude: Double, longitude: Double)
+    func locationService(_ service: CoreLocationService, didFailWithError error: Error)
 }
 
-/// Errors that can be emitted by ``LocationService``.
+/// Errors that can be emitted by ``CoreLocationService``.
 enum LocationServiceError: Error {
     case authorizationDenied
     case authorizationRestricted
@@ -16,8 +19,9 @@ enum LocationServiceError: Error {
 
 /// A simple wrapper around `CLLocationManager` that requests
 /// permission and forwards coordinate updates to its delegate or
-/// callback.
-final class LocationService: NSObject, CLLocationManagerDelegate {
+/// callback.  Location events can also be observed using Combine
+/// publishers when available.
+final class CoreLocationService: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var didStop = false
 
@@ -29,6 +33,20 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     /// Optional closure called when errors occur.
     var onError: ((Error) -> Void)?
+
+    #if canImport(Combine)
+    private let locationSubject = PassthroughSubject<(Double, Double), Never>()
+    /// Publishes new latitude/longitude pairs as they are received.
+    var locationPublisher: AnyPublisher<(Double, Double), Never> {
+        locationSubject.eraseToAnyPublisher()
+    }
+
+    private let errorSubject = PassthroughSubject<Error, Never>()
+    /// Publishes errors produced by the service.
+    var errorPublisher: AnyPublisher<Error, Never> {
+        errorSubject.eraseToAnyPublisher()
+    }
+    #endif
 
     override init() {
         super.init()
@@ -46,10 +64,16 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             let error = LocationServiceError.authorizationDenied
             delegate?.locationService(self, didFailWithError: error)
             onError?(error)
+            #if canImport(Combine)
+            errorSubject.send(error)
+            #endif
         case .restricted:
             let error = LocationServiceError.authorizationRestricted
             delegate?.locationService(self, didFailWithError: error)
             onError?(error)
+            #if canImport(Combine)
+            errorSubject.send(error)
+            #endif
         default:
             break
         }
@@ -64,6 +88,10 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         delegate = nil
         onLocationUpdate = nil
         onError = nil
+        #if canImport(Combine)
+        locationSubject.send(completion: .finished)
+        errorSubject.send(completion: .finished)
+        #endif
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -76,10 +104,16 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             let error = LocationServiceError.authorizationDenied
             delegate?.locationService(self, didFailWithError: error)
             onError?(error)
+            #if canImport(Combine)
+            errorSubject.send(error)
+            #endif
         case .restricted:
             let error = LocationServiceError.authorizationRestricted
             delegate?.locationService(self, didFailWithError: error)
             onError?(error)
+            #if canImport(Combine)
+            errorSubject.send(error)
+            #endif
         default:
             break
         }
@@ -91,11 +125,17 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         let lon = location.coordinate.longitude
         delegate?.locationService(self, didUpdateLatitude: lat, longitude: lon)
         onLocationUpdate?(lat, lon)
+        #if canImport(Combine)
+        locationSubject.send((lat, lon))
+        #endif
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         delegate?.locationService(self, didFailWithError: error)
         onError?(error)
+        #if canImport(Combine)
+        errorSubject.send(error)
+        #endif
     }
 
     deinit {
