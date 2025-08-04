@@ -15,6 +15,19 @@ struct Main {
         let selfLon = -122.4194
 
         let me = try! Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
+        await manager.add(me)
+
+#if canImport(CoreLocation)
+        // Track the device's location and feed updates into the peer manager
+        let locationService = LocationService()
+        locationService.onLocationUpdate = { lat, lon in
+            Task {
+                await manager.updateLocation(id: me.id, latitude: lat, longitude: lon)
+            }
+        }
+        locationService.start()
+        defer { locationService.stop() }
+#endif
 
         // Add a peer in San Francisco
         let movingPeer = try! Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
