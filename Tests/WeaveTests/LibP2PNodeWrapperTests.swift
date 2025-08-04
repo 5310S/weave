@@ -8,10 +8,10 @@ final class LibP2PNodeWrapperTests: XCTestCase {
         var bootstrapped: [String] = []
         var handler: ((LibP2PStream) -> Void)?
 
-        func start() { started = true }
-        func bootstrap(peers: [String]) { bootstrapped = peers }
-        func enableNAT() {}
-        func stop() {}
+        func start() throws { started = true }
+        func bootstrap(peers: [String]) throws { bootstrapped = peers }
+        func enableNAT() throws {}
+        func stop() throws {}
         func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) { self.handler = handler }
     }
@@ -34,7 +34,7 @@ final class LibP2PNodeWrapperTests: XCTestCase {
 
         init(peer: Peer) { self.peer = peer }
 
-        func write(_ data: Data) { remote?.dataHandler?(data) }
+        func write(_ data: Data) throws { remote?.dataHandler?(data) }
         func setDataHandler(_ handler: @escaping (Data) -> Void) { dataHandler = handler }
     }
 
@@ -47,10 +47,10 @@ final class LibP2PNodeWrapperTests: XCTestCase {
 
         func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
 
-        func start() {}
-        func bootstrap(peers: [String]) {}
-        func enableNAT() {}
-        func stop() {}
+        func start() throws {}
+        func bootstrap(peers: [String]) throws {}
+        func enableNAT() throws {}
+        func stop() throws {}
 
         func openStream(to peer: Peer) throws -> LibP2PStream {
             let local = MockStream(peer: peer)

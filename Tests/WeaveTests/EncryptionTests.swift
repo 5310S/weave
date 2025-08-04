@@ -45,7 +45,7 @@ final class EncryptionTests: XCTestCase {
             weak var remote: MockStream?
             var onWrite: ((Data) -> Void)?
             init(peer: Peer) { self.peer = peer }
-            func write(_ data: Data) {
+            func write(_ data: Data) throws {
                 onWrite?(data)
                 remote?.dataHandler?(data)
             }
@@ -61,10 +61,10 @@ final class EncryptionTests: XCTestCase {
 
             func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
 
-            func start() {}
-            func bootstrap(peers: [String]) {}
-            func enableNAT() {}
-            func stop() {}
+            func start() throws {}
+            func bootstrap(peers: [String]) throws {}
+            func enableNAT() throws {}
+            func stop() throws {}
 
             func openStream(to peer: Peer) throws -> LibP2PStream {
                 let local = MockStream(peer: peer)
