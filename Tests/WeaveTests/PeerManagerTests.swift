@@ -484,4 +484,26 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertTrue(await manager.peers(inGeohash: oldHash).isEmpty)
         XCTAssertEqual(await manager.peers(inGeohash: newHash), [second])
     }
+
+    func testPeersDiscoveredAcrossManagersViaDHT() async {
+        let dht = InMemoryDHT()
+        let nodeA = PeerManager(dht: dht)
+        let nodeB = PeerManager(dht: dht)
+
+        let remote = try! Peer(latitude: 10.0, longitude: 10.0)
+        await nodeA.add(remote)
+
+        let prefix = String(remote.geohash.prefix(5))
+        XCTAssertTrue(await nodeB.peers(inGeohash: prefix).isEmpty)
+
+        let discovered = await dht.lookup(prefix: prefix)
+        XCTAssertTrue(discovered.contains(remote.id))
+
+        if let fetched = await nodeA.peer(id: remote.id) {
+            await nodeB.add(fetched)
+        }
+
+        let results = await nodeB.peers(inGeohash: prefix)
+        XCTAssertEqual(results, [remote])
+    }
 }

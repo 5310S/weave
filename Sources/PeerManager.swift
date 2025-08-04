@@ -1,13 +1,18 @@
 import Foundation
 
 /// Manages known peers and provides basic discovery utilities.
+/// Geohash lookups are backed by a distributed hash table so that peer
+/// locations can be shared across nodes.
 actor PeerManager {
 
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
-    /// Maps full geohashes to the IDs of peers within that cell.
-    private var geohashIndex: [String: Set<UUID>] = [:]
+    private let dht: any DHT
+
+    init(dht: any DHT = InMemoryDHT()) {
+        self.dht = dht
+    }
 
     /// Marks a peer as blocked, excluding it from discovery APIs.
     func block(id: UUID) {
@@ -46,38 +51,18 @@ actor PeerManager {
 
 
     /// Adds or updates a peer in the manager.
-    func add(_ peer: Peer) {
+    func add(_ peer: Peer) async {
         if let existing = peerIndex[peer.id] {
-            let oldKey = existing.geohash
-            if var bucket = geohashIndex[oldKey] {
-                bucket.remove(peer.id)
-                if bucket.isEmpty {
-                    geohashIndex.removeValue(forKey: oldKey)
-                } else {
-                    geohashIndex[oldKey] = bucket
-                }
-            }
+            await dht.remove(peerID: peer.id, geohash: existing.geohash)
         }
         peerIndex[peer.id] = peer
-        let key = peer.geohash
-        var bucket = geohashIndex[key] ?? Set<UUID>()
-        bucket.insert(peer.id)
-        geohashIndex[key] = bucket
-
+        await dht.store(peerID: peer.id, geohash: peer.geohash)
     }
 
     /// Removes a peer by id.
-    func remove(id: UUID) {
+    func remove(id: UUID) async {
         if let peer = peerIndex.removeValue(forKey: id) {
-            let key = peer.geohash
-            if var bucket = geohashIndex[key] {
-                bucket.remove(id)
-                if bucket.isEmpty {
-                    geohashIndex.removeValue(forKey: key)
-                } else {
-                    geohashIndex[key] = bucket
-                }
-            }
+            await dht.remove(peerID: id, geohash: peer.geohash)
         }
         blocked.remove(id)
         liked.remove(id)
@@ -89,7 +74,7 @@ actor PeerManager {
     }
 
     /// Updates a peer's geographic location if it exists in the manager.
-    func updateLocation(id: UUID, latitude: Double, longitude: Double) {
+    func updateLocation(id: UUID, latitude: Double, longitude: Double) async {
         guard var peer = peerIndex[id] else { return }
         let oldKey = peer.geohash
         peer.latitude = latitude
@@ -98,17 +83,8 @@ actor PeerManager {
         peerIndex[id] = peer
         let newKey = peer.geohash
         if oldKey != newKey {
-            if var bucket = geohashIndex[oldKey] {
-                bucket.remove(id)
-                if bucket.isEmpty {
-                    geohashIndex.removeValue(forKey: oldKey)
-                } else {
-                    geohashIndex[oldKey] = bucket
-                }
-            }
-            var newBucket = geohashIndex[newKey] ?? Set<UUID>()
-            newBucket.insert(id)
-            geohashIndex[newKey] = newBucket
+            await dht.remove(peerID: id, geohash: oldKey)
+            await dht.store(peerID: id, geohash: newKey)
         }
     }
 
@@ -191,19 +167,15 @@ actor PeerManager {
 
     /// Returns peers whose geohash begins with the specified prefix. Useful for
     /// coarse location-based grouping using geohash bucketing.
-    func peers(inGeohash prefix: String) -> [Peer] {
-        peers(inGeohash: prefix, matching: [:])
+    func peers(inGeohash prefix: String) async -> [Peer] {
+        await peers(inGeohash: prefix, matching: [:])
     }
 
 
     /// Returns peers in the specified geohash prefix that match all provided
     /// attribute filters.
-    func peers(inGeohash prefix: String, matching filters: [String: String]) -> [Peer] {
-        let ids = geohashIndex.reduce(into: Set<UUID>()) { result, entry in
-            if entry.key.hasPrefix(prefix) {
-                result.formUnion(entry.value)
-            }
-        }
+    func peers(inGeohash prefix: String, matching filters: [String: String]) async -> [Peer] {
+        let ids = await dht.lookup(prefix: prefix)
         return ids.compactMap { id in
             guard let peer = peerIndex[id],
                   !blocked.contains(id),
@@ -272,15 +244,14 @@ actor PeerManager {
     }
 
     /// Removes peers that were last seen before the provided cutoff date.
-    func pruneStale(before cutoff: Date) {
-
-        peerIndex = peerIndex.filter { $0.value.lastSeen >= cutoff }
+    func pruneStale(before cutoff: Date) async {
+        let stale = peerIndex.filter { $0.value.lastSeen < cutoff }
+        for (id, peer) in stale {
+            await dht.remove(peerID: id, geohash: peer.geohash)
+            peerIndex.removeValue(forKey: id)
+        }
         blocked = blocked.filter { peerIndex[$0] != nil }
-
         liked = liked.filter { peerIndex[$0] != nil && !blocked.contains($0) }
-        geohashIndex = Dictionary(grouping: peerIndex.values, by: { $0.geohash })
-            .mapValues { Set($0.map { $0.id }) }
-
     }
 
 
@@ -307,13 +278,14 @@ actor PeerManager {
     }
 
     /// Loads peers (and blocked/liked IDs) from the provided store, replacing any existing data.
-    func load(from store: PeerStore) throws {
+    func load(from store: PeerStore) async throws {
         let snapshot = try store.load()
         peerIndex = Dictionary(uniqueKeysWithValues: snapshot.peers.map { ($0.id, $0) })
         blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
         liked = Set(snapshot.liked.filter { peerIndex[$0] != nil && !blocked.contains($0) })
-        geohashIndex = Dictionary(grouping: snapshot.peers, by: { $0.geohash })
-            .mapValues { Set($0.map { $0.id }) }
+        for peer in snapshot.peers {
+            await dht.store(peerID: peer.id, geohash: peer.geohash)
+        }
     }
 
 }
