@@ -225,7 +225,8 @@ final class P2PNodeTests: XCTestCase {
             XCTAssertEqual(peer.id, peerA.id)
             Task {
                 if let s = try? await nodeB.openStream(to: peer) {
-                    try? await nodeB.sendMessage(Data("pong".utf8), over: s)
+                    let pong = Message(type: "pong", payload: Data("pong".utf8), metadata: nil)
+                    try? await nodeB.sendMessage(pong, over: s)
                 }
             }
             expB.fulfill()

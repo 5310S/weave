@@ -335,10 +335,9 @@ actor P2PNode {
 
     /// Encodes, encrypts and sends a message over an existing stream.
     func sendMessage(_ message: Message, over stream: LibP2PStream) throws {
-        guard let peerKey = stream.peer.publicKey else {
-            throw P2PError.missingPeerPublicKey
-        }
-        let encrypted = try message.encrypted(from: privateKey, to: peerKey)
+        let key = try sharedKey(with: stream.peer)
+        let data = try JSONEncoder().encode(message)
+        let encrypted = try Encryption.encrypt(data, using: key)
         stream.write(encrypted)
     }
 
@@ -416,10 +415,9 @@ actor P2PNode {
     private func handleIncomingData(_ data: Data, from peer: Peer) {
         guard let handler = messageHandler else { return }
         do {
-            guard let senderKey = peer.publicKey else {
-                throw P2PError.missingPeerPublicKey
-            }
-            let message = try Message.decrypted(data, with: privateKey, senderPublicKey: senderKey)
+            let key = try sharedKey(with: peer)
+            let plaintext = try Encryption.decrypt(data, using: key)
+            let message = try JSONDecoder().decode(Message.self, from: plaintext)
             handler(message, peer)
         } catch {
             if let errorHandler {
