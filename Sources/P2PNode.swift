@@ -161,9 +161,10 @@ actor P2PNode {
     /// derivation calls.
     private let keyDerivation: (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey
 
-    /// Handler invoked for decrypted inbound messages. The associated stream is
-    /// provided so callers can respond over the same channel if desired.
-    private var messageHandler: (@Sendable (Data, Peer, LibP2PStream) -> Void)?
+
+    /// Handler invoked for decrypted inbound messages.
+    private var messageHandler: (@Sendable (Message, Peer) -> Void)?
+
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () -> LibP2PHosting = {
@@ -212,7 +213,9 @@ actor P2PNode {
     }
 
     /// Register a callback to receive decrypted messages from peers.
-    func setMessageHandler(_ handler: @escaping @Sendable (Data, Peer, LibP2PStream) -> Void) {
+
+    func setMessageHandler(_ handler: @escaping @Sendable (Message, Peer) -> Void) {
+
         messageHandler = handler
     }
 
@@ -225,9 +228,10 @@ actor P2PNode {
         return stream
     }
 
-    /// Encrypts and sends a message over an existing stream.
-    func sendMessage(_ message: Data, over stream: LibP2PStream) throws {
-        let encrypted = try send(message, to: stream.peer)
+    /// Encodes, encrypts and sends a message over an existing stream.
+    func sendMessage(_ message: Message, over stream: LibP2PStream) throws {
+        let data = try JSONEncoder().encode(message)
+        let encrypted = try send(data, to: stream.peer)
         stream.write(encrypted)
     }
 
@@ -296,12 +300,14 @@ actor P2PNode {
         }
     }
 
-    /// Decrypts data from a peer and forwards it to the registered handler.
-    private func handleIncomingData(_ data: Data, over stream: LibP2PStream) {
+
+    /// Decrypts data from a peer, decodes it to a `Message` and forwards it to the registered handler.
+    private func handleIncomingData(_ data: Data, from peer: Peer) {
         guard let handler = messageHandler else { return }
-        let peer = stream.peer
-        if let decrypted = try? receive(data, from: peer) {
-            handler(decrypted, peer, stream)
+        if let decrypted = try? receive(data, from: peer),
+           let message = try? JSONDecoder().decode(Message.self, from: decrypted) {
+            handler(message, peer)
+
         }
     }
 }
