@@ -186,13 +186,15 @@ final class P2PNodeTests: XCTestCase {
         let expA = expectation(description: "NodeA received")
         let expB = expectation(description: "NodeB received")
 
-        await nodeA.setMessageHandler { data, peer in
-            XCTAssertEqual(String(decoding: data, as: UTF8.self), "pong")
+        await nodeA.setMessageHandler { message, peer in
+            XCTAssertEqual(message.type, "pong")
+            XCTAssertEqual(String(decoding: message.payload, as: UTF8.self), "pong")
             XCTAssertEqual(peer.id, peerB.id)
             expA.fulfill()
         }
-        await nodeB.setMessageHandler { data, peer in
-            XCTAssertEqual(String(decoding: data, as: UTF8.self), "ping")
+        await nodeB.setMessageHandler { message, peer in
+            XCTAssertEqual(message.type, "ping")
+            XCTAssertEqual(String(decoding: message.payload, as: UTF8.self), "ping")
             XCTAssertEqual(peer.id, peerA.id)
             expB.fulfill()
         }
@@ -201,11 +203,13 @@ final class P2PNodeTests: XCTestCase {
         await nodeB.start()
 
         let streamAB = await nodeA.openStream(to: peerB)!
-        try await nodeA.sendMessage(Data("ping".utf8), over: streamAB)
+        let ping = Message(type: "ping", payload: Data("ping".utf8), metadata: nil)
+        try await nodeA.sendMessage(ping, over: streamAB)
         await fulfillment(of: [expB], timeout: 1.0)
 
         let streamBA = await nodeB.openStream(to: peerA)!
-        try await nodeB.sendMessage(Data("pong".utf8), over: streamBA)
+        let pong = Message(type: "pong", payload: Data("pong".utf8), metadata: nil)
+        try await nodeB.sendMessage(pong, over: streamBA)
         await fulfillment(of: [expA], timeout: 1.0)
     }
 }
