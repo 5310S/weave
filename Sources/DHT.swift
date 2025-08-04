@@ -1,7 +1,5 @@
 import Foundation
-#if canImport(LibP2P)
 import LibP2P
-#endif
 
 /// Protocol describing a minimal distributed hash table used for peer discovery.
 /// Implementations store peer IDs keyed by full geohashes and support lookups
@@ -50,24 +48,41 @@ public actor InMemoryDHT: DHT {
     }
 }
 
-#if canImport(LibP2P)
 /// Distributed hash table backed by libp2p's Kademlia implementation.
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT {
-    /// Underlying Kademlia DHT instance.
+    /// Underlying libp2p host instance.
+    private let host: Host
+    /// Kademlia DHT service provided by the host.
     private let kademlia: KademliaDHT
 
     /// Creates a new libp2p backed DHT. A host may be provided when
     /// integrating with an existing libp2p node. If omitted a fresh host is
-    /// constructed using libp2p's default `HostBuilder`.
+    /// constructed using libp2p's default `HostBuilder` and started
+    /// automatically.
     public init(host: Host? = nil) {
         if let host {
+            self.host = host
             self.kademlia = host.kademlia
         } else {
             let built = try! HostBuilder().build()
+            _ = try? built.start().wait()
+            self.host = built
             self.kademlia = built.kademlia
         }
+    }
+
+    /// Connects this DHT's host to another peer in the network.
+    public func bootstrap(to address: String) {
+        if let addr = try? Multiaddr(address) {
+            _ = try? host.bootstrap(to: addr).wait()
+        }
+    }
+
+    /// The multiaddresses this host is currently listening on.
+    public var listenAddresses: [String] {
+        host.listenAddresses.map { $0.description }
     }
 
     public func store(peerID: UUID, geohash: String) async {
@@ -106,15 +121,4 @@ public actor LibP2PDHT: DHT {
         return Set(decoded)
     }
 }
-#else
-/// Fallback no-op implementation used when libp2p is unavailable. This allows
-/// the package to build on platforms where the libp2p dependency cannot be
-/// resolved (such as the testing environment).
-public actor LibP2PDHT: DHT {
-    public init() {}
-    public func store(peerID: UUID, geohash: String) async {}
-    public func remove(peerID: UUID, geohash: String) async {}
-    public func lookup(prefix: String) async -> [UUID] { [] }
-}
-#endif
 
