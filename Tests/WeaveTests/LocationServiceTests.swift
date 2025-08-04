@@ -59,6 +59,36 @@ final class LocationServiceTests: XCTestCase {
         service.stop()
     }
 
+    func testAuthorizationDeniedAndRestrictedPropagateError() {
+        let delegateExpectation = expectation(description: "delegate error")
+        delegateExpectation.expectedFulfillmentCount = 2
+        let closureExpectation = expectation(description: "closure error")
+        closureExpectation.expectedFulfillmentCount = 2
+        let service = LocationService()
+
+        class Delegate: LocationServiceDelegate {
+            var expectation: XCTestExpectation?
+
+            func locationService(_ service: LocationService, didUpdateLatitude latitude: Double, longitude: Double) {}
+
+            func locationService(_ service: LocationService, didFailWithError error: Error) {
+                expectation?.fulfill()
+            }
+        }
+
+        let delegate = Delegate()
+        delegate.expectation = delegateExpectation
+        service.delegate = delegate
+
+        service.onError = { _ in closureExpectation.fulfill() }
+
+        service.locationManager(CLLocationManager(), didChangeAuthorization: .denied)
+        service.locationManager(CLLocationManager(), didChangeAuthorization: .restricted)
+
+        wait(for: [delegateExpectation, closureExpectation], timeout: 1.0)
+        service.stop()
+    }
+
     func testStopClearsDelegateAndClosures() {
         let service = LocationService()
 
