@@ -153,7 +153,7 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
         onLocationUpdate?(lat, lon)
         if let peerManager, let peerID {
             Task {
-                await peerManager.updateLocation(id: peerID, latitude: lat, longitude: lon)
+                try? await peerManager.updateLocation(id: peerID, latitude: lat, longitude: lon)
             }
         }
         #if canImport(Combine)

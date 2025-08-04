@@ -62,18 +62,18 @@ actor PeerManager {
 
 
     /// Adds or updates a peer in the manager.
-    func add(_ peer: Peer) async {
+    func add(_ peer: Peer) async throws {
         if let existing = peerIndex[peer.id] {
-            await dht.remove(peerID: peer.id, geohash: existing.geohash)
+            try await dht.remove(peerID: peer.id, geohash: existing.geohash)
         }
         peerIndex[peer.id] = peer
-        await dht.store(peerID: peer.id, geohash: peer.geohash)
+        try await dht.store(peerID: peer.id, geohash: peer.geohash)
     }
 
     /// Removes a peer by id.
-    func remove(id: UUID) async {
+    func remove(id: UUID) async throws {
         if let peer = peerIndex.removeValue(forKey: id) {
-            await dht.remove(peerID: id, geohash: peer.geohash)
+            try await dht.remove(peerID: id, geohash: peer.geohash)
         }
         blocked.remove(id)
         liked.remove(id)
@@ -85,7 +85,7 @@ actor PeerManager {
     }
 
     /// Updates a peer's geographic location if it exists in the manager.
-    func updateLocation(id: UUID, latitude: Double, longitude: Double) async {
+    func updateLocation(id: UUID, latitude: Double, longitude: Double) async throws {
         guard var peer = peerIndex[id] else { return }
         let oldKey = peer.geohash
         peer.latitude = latitude
@@ -94,8 +94,8 @@ actor PeerManager {
         peerIndex[id] = peer
         let newKey = peer.geohash
         if oldKey != newKey {
-            await dht.remove(peerID: id, geohash: oldKey)
-            await dht.store(peerID: id, geohash: newKey)
+            try await dht.remove(peerID: id, geohash: oldKey)
+            try await dht.store(peerID: id, geohash: newKey)
         }
     }
 
@@ -255,10 +255,10 @@ actor PeerManager {
     }
 
     /// Removes peers that were last seen before the provided cutoff date.
-    func pruneStale(before cutoff: Date) async {
+    func pruneStale(before cutoff: Date) async throws {
         let stale = peerIndex.filter { $0.value.lastSeen < cutoff }
         for (id, peer) in stale {
-            await dht.remove(peerID: id, geohash: peer.geohash)
+            try await dht.remove(peerID: id, geohash: peer.geohash)
             peerIndex.removeValue(forKey: id)
         }
         blocked = blocked.filter { peerIndex[$0] != nil }
@@ -295,7 +295,7 @@ actor PeerManager {
         blocked = Set(snapshot.blocked.filter { peerIndex[$0] != nil })
         liked = Set(snapshot.liked.filter { peerIndex[$0] != nil && !blocked.contains($0) })
         for peer in snapshot.peers {
-            await dht.store(peerID: peer.id, geohash: peer.geohash)
+            try await dht.store(peerID: peer.id, geohash: peer.geohash)
         }
     }
 

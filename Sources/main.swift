@@ -16,14 +16,14 @@ struct Main {
         let selfLon = -122.4194
 
         let me = try! Peer(name: "Me", latitude: selfLat, longitude: selfLon, attributes: ["hobby": "hiking"])
-        await manager.add(me)
+        try? await manager.add(me)
 
 #if canImport(CoreLocation)
         // Track the device's location and feed updates into the peer manager
         let locationService = CoreLocationService()
         locationService.onLocationUpdate = { lat, lon in
             Task {
-                await manager.updateLocation(id: me.id, latitude: lat, longitude: lon)
+                try? await manager.updateLocation(id: me.id, latitude: lat, longitude: lon)
             }
         }
         locationService.start()
@@ -32,12 +32,12 @@ struct Main {
 
         // Add a peer in San Francisco
         let movingPeer = try! Peer(name: "Alice", latitude: 37.7750, longitude: -122.4183, attributes: ["hobby": "hiking", "likes": me.id.uuidString])
-        await manager.add(movingPeer)
+        try? await manager.add(movingPeer)
 
         // Add another peer in Los Angeles with the same hobby
         let laPeer = try! Peer(name: "Bob", latitude: 34.0522, longitude: -118.2437, attributes: ["hobby": "hiking"])
 
-        await manager.add(laPeer)
+        try? await manager.add(laPeer)
 
         // Query peers sharing the same geohash prefix as the moving peer (coarse area
         // match) and demonstrate attribute filtering.
@@ -71,7 +71,7 @@ struct Main {
         print("Peers after blocking LA user: \(nearbyPeers.count)")
 
         // Update the peer's location to New York
-        await manager.updateLocation(id: movingPeer.id, latitude: 40.7128, longitude: -74.0060)
+        try? await manager.updateLocation(id: movingPeer.id, latitude: 40.7128, longitude: -74.0060)
         nearbyPeers = await manager.peers(near: selfLat, longitude: selfLon, radius: 5.0)
         print("Nearby peers after move: \(nearbyPeers.count)")
 
@@ -115,9 +115,9 @@ struct Main {
 
         // Demonstrate pruning stale peers
         let stalePeer = try! Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))
-        await manager.add(stalePeer)
+        try? await manager.add(stalePeer)
         print("Total peers before pruning: \(await manager.allPeers().count)")
-        await manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
+        try? await manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
         print("Peers after pruning stale entries: \(await manager.allPeers().count)")
 
         // Fetch the most recently seen peers
