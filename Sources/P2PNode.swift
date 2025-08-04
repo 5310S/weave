@@ -1,5 +1,32 @@
 import Foundation
 import Crypto
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Darwin)
+import Darwin
+#endif
+
+/// Build a multiaddr string for the given address and port. The function
+/// attempts to detect whether the address represents an IPv4, IPv6 or DNS
+/// hostname and prefixes the multiaddr accordingly.
+///
+/// - Parameters:
+///   - address: The peer's address in string form.
+///   - port: The peer's port number.
+/// - Returns: A multiaddr string such as "/ip4/1.2.3.4/tcp/4001".
+func multiaddrString(for address: String, port: UInt16) -> String {
+    var ipv4 = in_addr()
+    var ipv6 = in6_addr()
+    let prefix: String
+    if address.withCString({ inet_pton(AF_INET, $0, &ipv4) }) == 1 {
+        prefix = "ip4"
+    } else if address.withCString({ inet_pton(AF_INET6, $0, &ipv6) }) == 1 {
+        prefix = "ip6"
+    } else {
+        prefix = "dns"
+    }
+    return "/\(prefix)/\(address)/tcp/\(port)"
+}
 
 #if canImport(LibP2P)
 import LibP2P
@@ -55,7 +82,8 @@ struct LibP2PHost: LibP2PHosting {
         guard let address = peer.address, let port = peer.port else {
             throw HostError.missingPeerAddress
         }
-        let addr = try Multiaddr("/ip4/\(address)/tcp/\(port)")
+        let maddr = multiaddrString(for: address, port: port)
+        let addr = try Multiaddr(maddr)
         let stream = try host.openStream(to: addr).wait()
         return HostStream(peer: peer, stream: stream)
     }
