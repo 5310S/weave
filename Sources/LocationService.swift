@@ -25,6 +25,12 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     private var didStop = false
 
+    /// Peer manager and identifier used for automatically propagating
+    /// location updates through the peer data flow. Both are optional so the
+    /// service can still be used in isolation or with callbacks.
+    private var peerManager: PeerManager?
+    private var peerID: UUID?
+
     /// Delegate that receives location updates.
     weak var delegate: LocationServiceDelegate?
 
@@ -51,6 +57,24 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
     override init() {
         super.init()
         manager.delegate = self
+    }
+
+    /// Creates a service that will forward location changes directly to a
+    /// ``PeerManager`` for the specified peer identifier.
+    init(peerManager: PeerManager, peerID: UUID) {
+        self.peerManager = peerManager
+        self.peerID = peerID
+        super.init()
+        manager.delegate = self
+    }
+
+    /// Associates this service with a peer manager after initialization.
+    /// - Parameters:
+    ///   - manager: The peer manager responsible for the peer.
+    ///   - id: The identifier of the peer whose location should be updated.
+    func track(manager: PeerManager, id: UUID) {
+        self.peerManager = manager
+        self.peerID = id
     }
 
     /// Begins requesting authorization and, once granted, updates.
@@ -88,6 +112,8 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
         delegate = nil
         onLocationUpdate = nil
         onError = nil
+        peerManager = nil
+        peerID = nil
         #if canImport(Combine)
         locationSubject.send(completion: .finished)
         errorSubject.send(completion: .finished)
@@ -125,6 +151,11 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
         let lon = location.coordinate.longitude
         delegate?.locationService(self, didUpdateLatitude: lat, longitude: lon)
         onLocationUpdate?(lat, lon)
+        if let peerManager, let peerID {
+            Task {
+                await peerManager.updateLocation(id: peerID, latitude: lat, longitude: lon)
+            }
+        }
         #if canImport(Combine)
         locationSubject.send((lat, lon))
         #endif
