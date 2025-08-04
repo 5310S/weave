@@ -169,7 +169,7 @@ final class P2PNodeTests: XCTestCase {
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) { self.handler = handler }
     }
 
-    func testRoundTripMessageBetweenTwoNodes() async throws {
+    func testStreamDeliversDataBothWays() async throws {
         let keysA = Encryption.generateKeyPair()
         let peerA = try Peer(publicKey: keysA.publicKey, latitude: 0, longitude: 0)
         let keysB = Encryption.generateKeyPair()
@@ -183,17 +183,18 @@ final class P2PNodeTests: XCTestCase {
         let nodeA = P2PNode(hostBuilder: { hostA })
         let nodeB = P2PNode(hostBuilder: { hostB })
 
-        let expA = expectation(description: "NodeA received")
-        let expB = expectation(description: "NodeB received")
+        let expA = expectation(description: "NodeA received pong")
+        let expB = expectation(description: "NodeB received ping")
 
-        await nodeA.setMessageHandler { data, peer in
+        await nodeA.setMessageHandler { data, peer, _ in
             XCTAssertEqual(String(decoding: data, as: UTF8.self), "pong")
             XCTAssertEqual(peer.id, peerB.id)
             expA.fulfill()
         }
-        await nodeB.setMessageHandler { data, peer in
+        await nodeB.setMessageHandler { data, peer, stream in
             XCTAssertEqual(String(decoding: data, as: UTF8.self), "ping")
             XCTAssertEqual(peer.id, peerA.id)
+            Task { try? await nodeB.sendMessage(Data("pong".utf8), over: stream) }
             expB.fulfill()
         }
 
@@ -202,10 +203,7 @@ final class P2PNodeTests: XCTestCase {
 
         let streamAB = await nodeA.openStream(to: peerB)!
         try await nodeA.sendMessage(Data("ping".utf8), over: streamAB)
-        await fulfillment(of: [expB], timeout: 1.0)
 
-        let streamBA = await nodeB.openStream(to: peerA)!
-        try await nodeB.sendMessage(Data("pong".utf8), over: streamBA)
-        await fulfillment(of: [expA], timeout: 1.0)
+        await fulfillment(of: [expB, expA], timeout: 1.0)
     }
 }
