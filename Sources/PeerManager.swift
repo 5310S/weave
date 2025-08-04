@@ -8,7 +8,7 @@ actor PeerManager {
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
-    private let dht: any DHT
+    nonisolated let dht: any DHT
 
     /// Creates a new manager. When no explicit DHT is provided a libp2p-backed
     /// implementation is used if available, falling back to an in-memory table

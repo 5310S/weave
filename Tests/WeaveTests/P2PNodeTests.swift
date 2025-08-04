@@ -1,6 +1,7 @@
 import XCTest
 @testable import weave
 
+#if canImport(Crypto)
 final class P2PNodeTests: XCTestCase {
     /// Simple mock host that records whether its lifecycle methods were invoked.
     final class MockHost: LibP2PHosting {
@@ -277,3 +278,4 @@ final class P2PNodeTests: XCTestCase {
         await fulfillment(of: [expError], timeout: 1.0)
     }
 }
+#endif

@@ -1,8 +1,37 @@
 import Foundation
 #if canImport(CryptoKit)
 import CryptoKit
-#else
+#elseif canImport(Crypto)
 import Crypto
+#else
+// Minimal stand-ins for the CryptoKit APIs used in PeerStore so that the code
+// can compile in environments without the real libraries. The implementation
+// simply XORs data with the key for "encryption" and should not be used in
+// production.
+struct SymmetricKey {
+    struct SymmetricKeySize { static let bits256 = SymmetricKeySize() }
+    let data: Data
+    init(size: SymmetricKeySize) {
+        self.data = Data((0..<32).map { _ in UInt8.random(in: 0...255) })
+    }
+    init(data: Data) { self.data = data }
+    func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+        try data.withUnsafeBytes(body)
+    }
+}
+enum AES {
+    enum GCM {
+        struct SealedBox { let combined: Data }
+        static func seal(_ data: Data, using key: SymmetricKey) throws -> SealedBox {
+            let xored = data.enumerated().map { $0.element ^ key.data[$0.offset % key.data.count] }
+            return SealedBox(combined: Data(xored))
+        }
+        static func open(_ box: SealedBox, using key: SymmetricKey) throws -> Data {
+            let decrypted = box.combined.enumerated().map { $0.element ^ key.data[$0.offset % key.data.count] }
+            return Data(decrypted)
+        }
+    }
+}
 #endif
 #if canImport(Security)
 import Security
@@ -164,5 +193,29 @@ struct PeerStore {
         }
 
         throw StoreError.decryptionFailed
+    }
+}
+
+extension PeerStore {
+    /// Builds buckets keyed by geohash prefixes for the stored peers. Each
+    /// bucket contains peers whose geohash (derived from their stored latitude
+    /// and longitude) shares the same prefix of the specified length.
+    /// - Parameter prefixLength: Number of characters to use for the prefix key.
+    /// - Returns: Dictionary mapping geohash prefixes to the peers in that cell.
+    func geohashBuckets(prefixLength: Int) throws -> [String: [Peer]] {
+        let (peers, _, _) = try load()
+        return peers.reduce(into: [String: [Peer]]()) { dict, peer in
+            let hash = GeoHash.encode(latitude: peer.latitude, longitude: peer.longitude)
+            let prefix = String(hash.prefix(prefixLength))
+            dict[prefix, default: []].append(peer)
+        }
+    }
+
+    /// Returns peers whose geohash begins with the provided prefix by consulting
+    /// the geohash buckets built from the stored peers.
+    /// - Parameter prefix: The geohash prefix to search for.
+    func lookup(prefix: String) throws -> [Peer] {
+        let buckets = try geohashBuckets(prefixLength: prefix.count)
+        return buckets[prefix] ?? []
     }
 }

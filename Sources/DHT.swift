@@ -3,10 +3,10 @@ import Foundation
 import LibP2P
 #endif
 
-/// Protocol describing a minimal distributed hash table used for peer discovery.
-/// Implementations store peer IDs keyed by full geohashes and support lookups
-/// by geohash prefix.
-public protocol DHT {
+/// Protocol describing a minimal distributed hash table used for peer
+/// discovery. Implementations store peer IDs keyed by geohash prefixes and
+/// support lookups by geohash prefix.
+public protocol DHT: Sendable {
     /// Stores the given peer identifier under the provided full geohash.
     func store(peerID: UUID, geohash: String) async
 
@@ -17,36 +17,54 @@ public protocol DHT {
     func lookup(prefix: String) async -> [UUID]
 }
 
+public extension DHT {
+    /// Convenience helper that computes the geohash for the provided
+    /// coordinates using ``GeoHash`` and stores the peer in the appropriate
+    /// buckets.
+    func store(peerID: UUID, latitude: Double, longitude: Double, precision: Int = 8) async {
+        let hash = GeoHash.encode(latitude: latitude, longitude: longitude, precision: precision)
+        await store(peerID: peerID, geohash: hash)
+    }
+
+    /// Convenience helper mirroring ``store(peerID:latitude:longitude:)`` but
+    /// removing the peer from all buckets derived from the computed geohash.
+    func remove(peerID: UUID, latitude: Double, longitude: Double, precision: Int = 8) async {
+        let hash = GeoHash.encode(latitude: latitude, longitude: longitude, precision: precision)
+        await remove(peerID: peerID, geohash: hash)
+    }
+}
+
 /// Simple in-memory DHT implementation used for testing. This actor maintains
-/// a dictionary mapping full geohashes to the set of peer identifiers within
-/// that cell.
+/// buckets keyed by geohash prefixes allowing efficient prefix lookups.
 public actor InMemoryDHT: DHT {
     private var index: [String: Set<UUID>] = [:]
 
     public init() {}
 
     public func store(peerID: UUID, geohash: String) async {
-        var bucket = index[geohash] ?? Set<UUID>()
-        bucket.insert(peerID)
-        index[geohash] = bucket
+        for length in 1...geohash.count {
+            let key = String(geohash.prefix(length))
+            var bucket = index[key] ?? Set<UUID>()
+            bucket.insert(peerID)
+            index[key] = bucket
+        }
     }
 
     public func remove(peerID: UUID, geohash: String) async {
-        guard var bucket = index[geohash] else { return }
-        bucket.remove(peerID)
-        if bucket.isEmpty {
-            index.removeValue(forKey: geohash)
-        } else {
-            index[geohash] = bucket
+        for length in 1...geohash.count {
+            let key = String(geohash.prefix(length))
+            guard var bucket = index[key] else { continue }
+            bucket.remove(peerID)
+            if bucket.isEmpty {
+                index.removeValue(forKey: key)
+            } else {
+                index[key] = bucket
+            }
         }
     }
 
     public func lookup(prefix: String) async -> [UUID] {
-        index.reduce(into: [UUID]()) { result, entry in
-            if entry.key.hasPrefix(prefix) {
-                result.append(contentsOf: entry.value)
-            }
-        }
+        Array(index[prefix] ?? [])
     }
 }
 

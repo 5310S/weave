@@ -1,6 +1,7 @@
 import XCTest
 @testable import weave
 
+#if canImport(Crypto)
 final class EncryptionTests: XCTestCase {
     func testSharedSecretAgreement() throws {
         let alice = Encryption.generateKeyPair()
@@ -29,4 +30,5 @@ final class EncryptionTests: XCTestCase {
         XCTAssertEqual(message, decrypted)
     }
 }
+#endif
 

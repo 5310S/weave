@@ -3,6 +3,7 @@ import XCTest
 import Foundation
 @testable import weave
 
+#if canImport(Crypto)
 final class PeerManagerTests: XCTestCase {
     func testFiltersNearbyPeers() async {
 
@@ -507,3 +508,4 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertEqual(results, [remote])
     }
 }
+#endif

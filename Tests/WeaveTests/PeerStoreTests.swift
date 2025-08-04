@@ -53,4 +53,16 @@ final class PeerStoreTests: XCTestCase {
         XCTAssertNoThrow(try store.save(peers: [peer], blocked: []))
         XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
     }
+
+    func testLookupByGeohashPrefixReturnsMatchingPeers() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = PeerStore(url: tempURL)
+        let p1 = try Peer(latitude: 37.7749, longitude: -122.4194)
+        let p2 = try Peer(latitude: 37.7750, longitude: -122.4195)
+        let p3 = try Peer(latitude: 40.7128, longitude: -74.0060)
+        try store.save(peers: [p1, p2, p3], blocked: [])
+        let prefix = String(GeoHash.encode(latitude: p1.latitude, longitude: p1.longitude).prefix(7))
+        let results = try store.lookup(prefix: prefix)
+        XCTAssertEqual(Set(results.map { $0.id }), Set([p1.id, p2.id]))
+    }
 }
