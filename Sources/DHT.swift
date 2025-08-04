@@ -1,15 +1,23 @@
 import Foundation
 import LibP2P
 
+/// Errors that can occur when writing values to the DHT.
+public enum DHTError: Error {
+    /// Encoding the peer identifier set failed.
+    case encodingFailed(Error)
+    /// The underlying Kademlia `put` operation failed.
+    case putFailed(Error)
+}
+
 /// Protocol describing a minimal distributed hash table used for peer discovery.
 /// Implementations store peer IDs keyed by full geohashes and support lookups
 /// by geohash prefix.
 public protocol DHT {
     /// Stores the given peer identifier under the provided full geohash.
-    func store(peerID: UUID, geohash: String) async
+    func store(peerID: UUID, geohash: String) async throws
 
     /// Removes the peer identifier from the given geohash bucket.
-    func remove(peerID: UUID, geohash: String) async
+    func remove(peerID: UUID, geohash: String) async throws
 
     /// Returns all peer identifiers whose stored geohash begins with the prefix.
     func lookup(prefix: String) async -> [UUID]
@@ -25,7 +33,7 @@ public actor InMemoryDHT: DHT {
 
     public init() {}
 
-    public func store(peerID: UUID, geohash: String) async {
+    public func store(peerID: UUID, geohash: String) async throws {
         for length in 1...geohash.count {
             let key = String(geohash.prefix(length))
             var bucket = index[key] ?? Set<UUID>()
@@ -34,7 +42,7 @@ public actor InMemoryDHT: DHT {
         }
     }
 
-    public func remove(peerID: UUID, geohash: String) async {
+    public func remove(peerID: UUID, geohash: String) async throws {
         for length in 1...geohash.count {
             let key = String(geohash.prefix(length))
             guard var bucket = index[key] else { continue }
@@ -93,24 +101,44 @@ public actor LibP2PDHT: DHT {
         host.listenAddresses.map { $0.description }
     }
 
-    public func store(peerID: UUID, geohash: String) async {
+    public func store(peerID: UUID, geohash: String) async throws {
         for length in 1...geohash.count {
             let key = String(geohash.prefix(length))
             var set = await loadSet(for: key)
             set.insert(peerID)
-            if let data = try? JSONEncoder().encode(Array(set)) {
-                _ = try? await kademlia.put(key: key, value: data)
+            let data: Data
+            do {
+                data = try JSONEncoder().encode(Array(set))
+            } catch {
+                print("[DHT] Failed to encode peer set for key \(key): \(error)")
+                throw DHTError.encodingFailed(error)
+            }
+            do {
+                try await kademlia.put(key: key, value: data)
+            } catch {
+                print("[DHT] Failed to put peer set for key \(key): \(error)")
+                throw DHTError.putFailed(error)
             }
         }
     }
 
-    public func remove(peerID: UUID, geohash: String) async {
+    public func remove(peerID: UUID, geohash: String) async throws {
         for length in 1...geohash.count {
             let key = String(geohash.prefix(length))
             var set = await loadSet(for: key)
             set.remove(peerID)
-            if let data = try? JSONEncoder().encode(Array(set)) {
-                _ = try? await kademlia.put(key: key, value: data)
+            let data: Data
+            do {
+                data = try JSONEncoder().encode(Array(set))
+            } catch {
+                print("[DHT] Failed to encode peer set for key \(key): \(error)")
+                throw DHTError.encodingFailed(error)
+            }
+            do {
+                try await kademlia.put(key: key, value: data)
+            } catch {
+                print("[DHT] Failed to put peer set for key \(key): \(error)")
+                throw DHTError.putFailed(error)
             }
         }
     }

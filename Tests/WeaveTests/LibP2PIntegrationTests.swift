@@ -10,7 +10,7 @@ final class LibP2PIntegrationTests: XCTestCase {
         for addr in dhtB.listenAddresses { dhtA.bootstrap(to: addr) }
 
         let peerID = UUID()
-        await dhtA.store(peerID: peerID, geohash: "u4pruydqqvj")
+        try await dhtA.store(peerID: peerID, geohash: "u4pruydqqvj")
         // Small delay to allow propagation
         try await Task.sleep(nanoseconds: 200_000_000)
         let results = await dhtB.lookup(prefix: "u4pr")

@@ -7,7 +7,7 @@ final class CoreLocationServiceTests: XCTestCase {
     func testLocationUpdatesFeedPeerManager() async throws {
         let manager = PeerManager()
         let peer = try Peer(latitude: 0.0, longitude: 0.0)
-        await manager.add(peer)
+        try await manager.add(peer)
 
         // Service automatically updates the peer manager when coordinates change
         let service = CoreLocationService(peerManager: manager, peerID: peer.id)
