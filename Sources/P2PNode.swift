@@ -4,7 +4,7 @@ import Crypto
 #if canImport(LibP2P)
 import LibP2P
 
-/// Concrete implementation backed by the real `swift-libp2p` Host.
+/// Concrete implementation backed by the real `swift-libp2p` `Host`.
 struct LibP2PHost: LibP2PHosting {
     /// Underlying libp2p host instance.
     private let host: Host
@@ -74,6 +74,11 @@ struct LibP2PHost: LibP2PHosting {
             }
         }
     }
+
+    /// The multiaddresses the underlying host is listening on.
+    var listenAddresses: [String] {
+        host.listenAddresses.map { $0.description }
+    }
 }
 
 /// Wrapper around libp2p's `Stream` type to conform to `LibP2PStream`.
@@ -122,16 +127,6 @@ protocol LibP2PHosting {
     func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void)
 }
 
-/// Default no-op implementation used until a real libp2p host is wired in.
-struct NoopLibP2PHost: LibP2PHosting {
-    func start() {}
-    func bootstrap(peers: [String]) {}
-    func enableNAT() {}
-    func stop() {}
-    func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
-    func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
-}
-
 struct NoopLibP2PStream: LibP2PStream {
     let peer: Peer
     func write(_ data: Data) {}
@@ -156,11 +151,7 @@ actor LibP2PNode {
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () throws -> LibP2PHosting = {
-#if canImport(LibP2P)
             return try LibP2PHost()
-#else
-            return NoopLibP2PHost()
-#endif
          }) {
         self.bootstrapPeers = bootstrapPeers
         self.hostBuilder = hostBuilder
@@ -267,11 +258,7 @@ actor P2PNode {
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () throws -> LibP2PHosting = {
-#if canImport(LibP2P)
             return try LibP2PHost()
-#else
-            return NoopLibP2PHost()
-#endif
          },
          keyDerivation: @escaping (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey = Encryption.deriveSharedSecret) {
 
