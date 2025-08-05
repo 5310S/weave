@@ -12,7 +12,8 @@ let package = Package(
         // Swift libp2p implementation providing the `Host` we wrap in
         // `LibP2PNode`.
         .package(url: "https://github.com/libp2p/swift-libp2p.git", branch: "main"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "2.7.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "2.7.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2")
     ],
     targets: [
         // Targets define modules or test suites.
@@ -21,7 +22,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto"),
                 // Once released, this product will expose the libp2p host implementation.
-                .product(name: "LibP2P", package: "swift-libp2p")
+                .product(name: "LibP2P", package: "swift-libp2p"),
+                .product(name: "Logging", package: "swift-log")
             ]),
         .testTarget(
             name: "WeaveTests",
