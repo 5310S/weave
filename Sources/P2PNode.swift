@@ -1,5 +1,6 @@
 import Foundation
 import Crypto
+import Logging
 #if canImport(Glibc)
 import Glibc
 #elseif canImport(Darwin)
@@ -176,6 +177,8 @@ actor LibP2PNode {
     private var host: LibP2PHosting?
     /// Callback invoked for each successfully decoded inbound message.
     private var messageHandler: (@Sendable (Message, Peer) -> Void)?
+    /// Logger instance for recording node events.
+    private let logger = Logger(label: "LibP2PNode")
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () throws -> LibP2PHosting = {
@@ -203,7 +206,7 @@ actor LibP2PNode {
                 try host.bootstrap(peers: bootstrapPeers)
             }
         } catch {
-            print("Failed to start libp2p host: \(error)")
+            logger.error("Failed to start libp2p host: \(error)")
             throw error
         }
     }
@@ -214,7 +217,7 @@ actor LibP2PNode {
             do {
                 try host.stop()
             } catch {
-                print("Failed to stop libp2p host: \(error)")
+                logger.error("Failed to stop libp2p host: \(error)")
             }
         }
         host = nil
@@ -241,7 +244,7 @@ actor LibP2PNode {
         do {
             try stream.write(data)
         } catch {
-            print("Failed to write message to stream: \(error)")
+            logger.error("Failed to write message to stream: \(error)")
             throw error
         }
     }
@@ -299,6 +302,9 @@ actor P2PNode {
     /// Handler invoked when decryption or decoding fails.
     private var errorHandler: (@Sendable (Error, Peer) -> Void)?
 
+    /// Logger instance for high-level node events.
+    private let logger = Logger(label: "P2PNode")
+
 
     init(bootstrapPeers: [String] = [],
          hostBuilder: @escaping () throws -> LibP2PHosting = {
@@ -329,7 +335,7 @@ actor P2PNode {
         do {
             try host.start()
         } catch {
-            print("Failed to start host: \(error)")
+            logger.error("Failed to start host: \(error)")
             throw error
         }
 
@@ -337,14 +343,14 @@ actor P2PNode {
             do {
                 try host.bootstrap(peers: bootstrapPeers)
             } catch {
-                print("Failed to bootstrap peers: \(error)")
+                logger.warning("Failed to bootstrap peers: \(error)")
             }
         }
 
         do {
             try host.enableNAT()
         } catch {
-            print("Failed to enable NAT: \(error)")
+            logger.warning("Failed to enable NAT: \(error)")
         }
 
         isRunning = true
@@ -357,7 +363,7 @@ actor P2PNode {
             do {
                 try host.stop()
             } catch {
-                print("Failed to stop host: \(error)")
+                logger.error("Failed to stop host: \(error)")
             }
         }
         host = nil
@@ -394,7 +400,7 @@ actor P2PNode {
         do {
             try stream.write(encrypted)
         } catch {
-            print("Failed to send encrypted message: \(error)")
+            logger.error("Failed to send encrypted message: \(error)")
             throw error
         }
     }
@@ -481,7 +487,7 @@ actor P2PNode {
             if let errorHandler {
                 errorHandler(error, peer)
             } else {
-                print("Failed to handle incoming data from \(peer.id): \(error)")
+                logger.error("Failed to handle incoming data from \(peer.id): \(error)")
             }
         }
     }

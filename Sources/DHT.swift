@@ -1,5 +1,6 @@
 import Foundation
 import LibP2P
+import Logging
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error {
@@ -68,6 +69,8 @@ public actor LibP2PDHT: DHT {
     private let host: Host
     /// Kademlia DHT service provided by the host.
     private let kademlia: KademliaDHT
+    /// Logger for reporting DHT operations.
+    private let logger = Logger(label: "DHT")
 
     /// Creates a new libp2p backed DHT. A host may be provided when
     /// integrating with an existing libp2p node. If omitted a fresh host is
@@ -110,13 +113,13 @@ public actor LibP2PDHT: DHT {
             do {
                 data = try JSONEncoder().encode(Array(set))
             } catch {
-                print("[DHT] Failed to encode peer set for key \(key): \(error)")
+                logger.error("Failed to encode peer set for key \(key): \(error)")
                 throw DHTError.encodingFailed(error)
             }
             do {
                 try await kademlia.put(key: key, value: data)
             } catch {
-                print("[DHT] Failed to put peer set for key \(key): \(error)")
+                logger.error("Failed to put peer set for key \(key): \(error)")
                 throw DHTError.putFailed(error)
             }
         }
@@ -131,13 +134,13 @@ public actor LibP2PDHT: DHT {
             do {
                 data = try JSONEncoder().encode(Array(set))
             } catch {
-                print("[DHT] Failed to encode peer set for key \(key): \(error)")
+                logger.error("Failed to encode peer set for key \(key): \(error)")
                 throw DHTError.encodingFailed(error)
             }
             do {
                 try await kademlia.put(key: key, value: data)
             } catch {
-                print("[DHT] Failed to put peer set for key \(key): \(error)")
+                logger.error("Failed to put peer set for key \(key): \(error)")
                 throw DHTError.putFailed(error)
             }
         }
