@@ -506,4 +506,48 @@ final class PeerManagerTests: XCTestCase {
         let results = await nodeB.peers(inGeohash: prefix)
         XCTAssertEqual(results, [remote])
     }
+
+    /// Benchmarks the geohash-based radius search against a naive full-scan
+    /// implementation to ensure the optimized version is faster while
+    /// returning equivalent results.
+    func testGeohashPrefilterPerformance() async throws {
+        let manager = PeerManager()
+        let originLat = 37.7749
+        let originLon = -122.4194
+        let nearby = try! Peer(latitude: originLat + 0.001, longitude: originLon + 0.001)
+        try await manager.add(nearby)
+
+        for i in 0..<5000 {
+            let lat = Double(i % 180) - 90
+            let lon = Double((i * 3) % 360) - 180
+            let peer = try! Peer(latitude: lat, longitude: lon)
+            try await manager.add(peer)
+        }
+
+        let all = await manager.allPeers()
+        func naiveSearch() -> [Peer] {
+            all.filter { peer in
+                let earthRadiusKm = 6371.0
+                let deltaLat = (peer.latitude - originLat) * Double.pi / 180
+                let deltaLon = (peer.longitude - originLon) * Double.pi / 180
+                let a = sin(deltaLat/2) * sin(deltaLat/2) +
+                        cos(originLat * Double.pi / 180) * cos(peer.latitude * Double.pi / 180) *
+                        sin(deltaLon/2) * sin(deltaLon/2)
+                let c = 2 * atan2(sqrt(a), sqrt(1-a))
+                let dist = earthRadiusKm * c
+                return dist <= 5.0
+            }
+        }
+
+        let startNaive = Date()
+        let naive = naiveSearch()
+        let naiveDuration = Date().timeIntervalSince(startNaive)
+
+        let startOptimized = Date()
+        let optimized = await manager.peers(near: originLat, longitude: originLon, radius: 5.0)
+        let optimizedDuration = Date().timeIntervalSince(startOptimized)
+
+        XCTAssertEqual(Set(naive), Set(optimized))
+        XCTAssertLessThan(optimizedDuration, naiveDuration)
+    }
 }
