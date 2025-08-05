@@ -9,7 +9,12 @@ actor PeerManager {
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
     private let dht: any DHT
-
+    /// Approximate geohash cell width in kilometers for each precision level.
+    /// Values are based on the standard geohash specification and provide
+    /// coarse bounds used for candidate pre-filtering.
+    private let geohashCellSizeKm: [Int: Double] = [
+        1: 5000, 2: 1250, 3: 156, 4: 39.1, 5: 4.89, 6: 1.22, 7: 0.153, 8: 0.038
+    ]
     /// Creates a new manager. When no explicit DHT is provided a libp2p-backed
     /// implementation is used if available, falling back to an in-memory table
     /// for testing and platforms without libp2p.
@@ -175,15 +180,30 @@ actor PeerManager {
     }
 
     /// Returns peers within the given radius (in kilometers) of the provided location.
-    /// Optional attribute filters can further restrict the results.
+    /// Candidates are first looked up via geohash buckets to avoid scanning all
+    /// known peers. Optional attribute filters can further restrict the results.
     func peers(near latitude: Double,
                longitude: Double,
                radius: Double,
-               matching filters: [String: String] = [:]) -> [Peer] {
-        peerIndex.values.filter { peer in
-            !blocked.contains(peer.id) &&
-            distance(from: (latitude, longitude), to: (peer.latitude, peer.longitude)) <= radius &&
-            filters.allSatisfy { key, value in peer.attributes[key] == value }
+               matching filters: [String: String] = [:]) async -> [Peer] {
+        let precision = geohashPrecision(for: radius)
+        let prefixes = geohashPrefixes(latitude: latitude,
+                                       longitude: longitude,
+                                       radius: radius,
+                                       precision: precision)
+        var ids = Set<UUID>()
+        for prefix in prefixes {
+            let bucket = await dht.lookup(prefix: prefix)
+            ids.formUnion(bucket)
+        }
+
+        return ids.compactMap { id in
+            guard let peer = peerIndex[id],
+                  !blocked.contains(id),
+                  filters.allSatisfy({ key, value in peer.attributes[key] == value })
+            else { return nil }
+            return distance(from: (latitude, longitude),
+                            to: (peer.latitude, peer.longitude)) <= radius ? peer : nil
         }
     }
 
@@ -211,24 +231,39 @@ actor PeerManager {
 
     /// Returns up to `limit` peers sorted by proximity to the provided location.
     /// Optional attribute filters can restrict the results to peers matching all
-    /// specified key/value pairs.
+    /// specified key/value pairs. Candidates are gathered from geohash buckets,
+    /// expanding the search area until enough peers are found or all prefixes
+    /// are exhausted.
     func nearestPeers(to latitude: Double,
                       longitude: Double,
                       limit: Int,
-                      matching filters: [String: String] = [:]) -> [Peer] {
-        let candidates = peerIndex.values
-            .filter { peer in
-                !blocked.contains(peer.id) &&
-                filters.allSatisfy { key, value in peer.attributes[key] == value }
+                      matching filters: [String: String] = [:]) async -> [Peer] {
+        var precision = 6
+        var ids = Set<UUID>()
+        while ids.count < limit && precision > 0 {
+            let radius = geohashCellSizeKm[precision] ?? 5000.0
+            let prefixes = geohashPrefixes(latitude: latitude,
+                                           longitude: longitude,
+                                           radius: radius,
+                                           precision: precision)
+            for prefix in prefixes {
+                let bucket = await dht.lookup(prefix: prefix)
+                ids.formUnion(bucket)
             }
-            .map { peer -> (peer: Peer, distance: Double) in
-                let dist = distance(from: (latitude, longitude),
-                                    to: (peer.latitude, peer.longitude))
-                return (peer, dist)
-            }
-            .sorted { $0.distance < $1.distance }
+            precision -= 1
+        }
 
-        return candidates.prefix(limit).map { $0.peer }
+        let candidates: [(peer: Peer, distance: Double)] = ids.compactMap { id in
+            guard let peer = peerIndex[id],
+                  !blocked.contains(id),
+                  filters.allSatisfy({ key, value in peer.attributes[key] == value })
+            else { return nil }
+            let dist = distance(from: (latitude, longitude),
+                                to: (peer.latitude, peer.longitude))
+            return (peer, dist)
+        }.sorted { $0.distance < $1.distance }
+
+        return Array(candidates.prefix(limit).map { $0.peer })
     }
 
     /// Returns up to `limit` most recently seen peers, excluding any that are blocked.
@@ -242,10 +277,24 @@ actor PeerManager {
     /// Returns up to `limit` peers within `radius` kilometers of the given peer,
     /// ranked first by number of matching attribute key/value pairs and then by
     /// proximity (closest first).
-    func matchPeers(for peer: Peer, radius: Double, limit: Int) -> [Peer] {
-        let results: [(peer: Peer, score: Int, distance: Double)] = peerIndex.values.compactMap { candidate in
-            guard candidate.id != peer.id, !blocked.contains(candidate.id) else { return nil }
-            let dist = distance(from: (peer.latitude, peer.longitude), to: (candidate.latitude, candidate.longitude))
+    func matchPeers(for peer: Peer, radius: Double, limit: Int) async -> [Peer] {
+        let precision = geohashPrecision(for: radius)
+        let prefixes = geohashPrefixes(latitude: peer.latitude,
+                                       longitude: peer.longitude,
+                                       radius: radius,
+                                       precision: precision)
+        var ids = Set<UUID>()
+        for prefix in prefixes {
+            let bucket = await dht.lookup(prefix: prefix)
+            ids.formUnion(bucket)
+        }
+
+        let results: [(peer: Peer, score: Int, distance: Double)] = ids.compactMap { candidateID in
+            guard let candidate = peerIndex[candidateID],
+                  candidate.id != peer.id,
+                  !blocked.contains(candidate.id) else { return nil }
+            let dist = distance(from: (peer.latitude, peer.longitude),
+                                to: (candidate.latitude, candidate.longitude))
             guard dist <= radius else { return nil }
 
             let score = peer.attributes.reduce(0) { acc, pair in
@@ -288,6 +337,43 @@ actor PeerManager {
                 sin(deltaLon/2) * sin(deltaLon/2)
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         return earthRadiusKm * c
+    }
+
+    /// Determines a geohash precision appropriate for the given radius.
+    private func geohashPrecision(for radius: Double) -> Int {
+        switch radius {
+        case ..<0.19: return 7
+        case ..<0.61: return 6
+        case ..<2.4: return 5
+        case ..<20: return 4
+        case ..<80: return 3
+        case ..<630: return 2
+        default: return 1
+        }
+    }
+
+    /// Generates geohash prefixes covering a square bounding box around the
+    /// provided coordinate for the specified radius and precision. The box is
+    /// approximated by shifting the latitude/longitude by the radius in each
+    /// cardinal direction, yielding the center cell plus its neighbors.
+    private func geohashPrefixes(latitude: Double,
+                                 longitude: Double,
+                                 radius: Double,
+                                 precision: Int) -> Set<String> {
+        let latDelta = radius / 111.0
+        let lonDelta = radius / (111.0 * cos(latitude * Double.pi / 180))
+        let coords = [
+            (latitude, longitude),
+            (latitude + latDelta, longitude),
+            (latitude - latDelta, longitude),
+            (latitude, longitude + lonDelta),
+            (latitude, longitude - lonDelta),
+            (latitude + latDelta, longitude + lonDelta),
+            (latitude + latDelta, longitude - lonDelta),
+            (latitude - latDelta, longitude + lonDelta),
+            (latitude - latDelta, longitude - lonDelta)
+        ]
+        return Set(coords.map { GeoHash.encode(latitude: $0.0, longitude: $0.1, precision: precision) })
     }
 
     /// Persists all known peers along with blocked and liked IDs using the provided store.
