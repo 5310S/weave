@@ -129,6 +129,36 @@ final class PeerManagerTests: XCTestCase {
         XCTAssertFalse(await manager.peers(inGeohash: oldPrefix).contains(updated))
     }
 
+    func testUpdateLocationThrowsForInvalidLatitude() async throws {
+        let manager = PeerManager()
+        let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+        try await manager.add(peer)
+
+        do {
+            try await manager.updateLocation(id: peer.id, latitude: 100.0, longitude: 0.0)
+            XCTFail("Expected invalid latitude error")
+        } catch Peer.PeerError.invalidLatitude(let value) {
+            XCTAssertEqual(value, 100.0)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testUpdateLocationThrowsForInvalidLongitude() async throws {
+        let manager = PeerManager()
+        let peer = try! Peer(latitude: 0.0, longitude: 0.0)
+        try await manager.add(peer)
+
+        do {
+            try await manager.updateLocation(id: peer.id, latitude: 0.0, longitude: 200.0)
+            XCTFail("Expected invalid longitude error")
+        } catch Peer.PeerError.invalidLongitude(let value) {
+            XCTAssertEqual(value, 200.0)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
 
     func testUpdatingPeerAttributes() async throws {
         let manager = PeerManager()
