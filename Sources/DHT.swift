@@ -90,10 +90,9 @@ public actor LibP2PDHT: DHT {
     }
 
     /// Connects this DHT's host to another peer in the network.
-    public func bootstrap(to address: String) {
-        if let addr = try? Multiaddr(address) {
-            _ = try? host.bootstrap(to: addr).wait()
-        }
+    public func bootstrap(to address: String) throws {
+        let addr = try Multiaddr(address)
+        _ = try host.bootstrap(to: addr).wait()
     }
 
     /// The multiaddresses this host is currently listening on.
