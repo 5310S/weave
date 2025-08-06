@@ -31,6 +31,7 @@ func multiaddrString(for address: String, port: UInt16) -> String {
 
 #if canImport(LibP2P)
 import LibP2P
+import LibP2PCore
 
 /// Concrete implementation backed by the real `swift-libp2p` `Host`.
 struct LibP2PHost: LibP2PHosting {
@@ -110,12 +111,12 @@ struct LibP2PHost: LibP2PHosting {
     }
 }
 
-/// Wrapper around libp2p's `Stream` type to conform to `LibP2PStream`.
+/// Wrapper around libp2p's `LibP2PCore.Stream` type to conform to `LibP2PStream`.
 private final class HostStream: LibP2PStream {
     let peer: Peer
-    private let stream: Stream
+    private let stream: LibP2PCore.Stream
 
-    init(peer: Peer, stream: Stream) {
+    init(peer: Peer, stream: LibP2PCore.Stream) {
         self.peer = peer
         self.stream = stream
     }
