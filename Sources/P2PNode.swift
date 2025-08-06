@@ -39,26 +39,38 @@ import NIO
 /// Concrete implementation backed by the real `swift-libp2p` `Swarm`.
 struct LibP2PHost: LibP2PHosting {
     /// Concrete transport used by the underlying swarm.
-    private let transport: LibP2PCore.TransportManager
+    private let transport: LibP2PCore.Transport
     /// Libp2p swarm responsible for dialing and listening.
     private let swarm: LibP2PCore.Swarm
     /// Event loop group driving the networking stack.
     private let group: EventLoopGroup
 
     init() throws {
-        // The new libp2p API separates transport configuration from the swarm
-        // that manages connections. A basic transport and swarm are created here
-        // for general usage.
+        // The latest libp2p API exposes builder utilities for constructing
+        // transports and the swarm/host. We configure a basic TCP transport and
+        // use it to build the swarm which manages connections.
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
-        self.transport = LibP2PCore.TransportManager(group: group)
-        self.swarm = try LibP2PCore.Swarm(transportManager: transport)
+
+        // Build the concrete transport using the factory methods provided by
+        // swift-libp2p. The builder returns an async future which we wait on so
+        // initialisation remains synchronous for callers.
+        self.transport = try LibP2P.TransportBuilder(eventLoopGroup: group)
+            .build()
+            .wait()
+
+        // Create the swarm/host backed by the previously configured transport.
+        self.swarm = try LibP2P.SwarmBuilder(eventLoopGroup: group)
+            .withTransport(transport)
+            .build()
+            .wait()
     }
 
     /// Start listening for connections.
     func start() throws {
-        // Starting the transport brings up the underlying listeners.
-        try transport.start()
+        // The new API returns an async task when starting; block until the
+        // underlying listeners are ready.
+        try swarm.start().wait()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -66,13 +78,16 @@ struct LibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) throws {
         for address in peers {
             let addr = try Multiaddr(address)
-            _ = try swarm.dial(addr)
+            // Dial returns a future; wait for the connection attempt to
+            // complete before moving onto the next address.
+            _ = try swarm.dial(addr).wait()
         }
     }
 
     /// Shut down the host and release any associated resources.
     func stop() throws {
-        try transport.stop()
+        // Shut down the swarm/host and then the underlying event loop group.
+        try swarm.close().wait()
         try group.syncShutdownGracefully()
     }
 
@@ -90,7 +105,7 @@ struct LibP2PHost: LibP2PHosting {
         }
         let maddr = multiaddrString(for: address, port: port)
         let addr = try Multiaddr(maddr)
-        let stream = try swarm.dial(addr)
+        let stream = try swarm.dial(addr).wait()
         return HostStream(peer: peer, stream: stream)
     }
 
