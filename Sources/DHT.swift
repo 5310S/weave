@@ -114,7 +114,14 @@ public actor LibP2PDHT: DHT, Sendable {
     /// Connects this DHT's swarm to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
-        _ = try swarm.dial(addr)
+        do {
+            // The dial API now returns a future; wait for the connection
+            // attempt to complete so any errors are surfaced here.
+            _ = try swarm.dial(addr).wait()
+        } catch {
+            logger.error("Failed to dial bootstrap peer \(address): \(error)")
+            throw error
+        }
     }
 
     /// The multiaddresses this node is currently listening on.
