@@ -159,7 +159,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-libp2p/swift-libp2p.git",
       "state" : {
-        "branch" : "main",
         "revision" : "dc07454017c573c9d2e45d3f3b14d32beda25ba0"
       }
     },

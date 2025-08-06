@@ -12,7 +12,7 @@ let package = Package(
     dependencies: [
         // Swift libp2p implementation providing the `Host` we wrap in
         // `LibP2PNode`.
-        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", branch: "main"),
+        .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", revision: "dc07454017c573c9d2e45d3f3b14d32beda25ba0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.13.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2")
     ],
