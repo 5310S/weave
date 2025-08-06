@@ -6,18 +6,16 @@ final class P2PNodeTests: XCTestCase {
     final class MockHost: LibP2PHosting {
         var startCount = 0
         var bootstrapped: [String] = []
-        var natEnabled = false
         var stopCount = 0
 
         func start() throws { startCount += 1 }
         func bootstrap(peers: [String]) throws { bootstrapped = peers }
-        func enableNAT() throws { natEnabled = true }
         func stop() throws { stopCount += 1 }
         func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {}
     }
 
-    func testStartBootstrapsAndEnablesNAT() async throws {
+    func testStartBootstrapsHost() async throws {
         let mock = MockHost()
         let node = P2PNode(bootstrapPeers: ["1.2.3.4:4001"], hostBuilder: { mock })
 
@@ -27,7 +25,6 @@ final class P2PNodeTests: XCTestCase {
         XCTAssertTrue(await node.isRunning)
         XCTAssertEqual(mock.startCount, 1)
         XCTAssertEqual(mock.bootstrapped, ["1.2.3.4:4001"])
-        XCTAssertTrue(mock.natEnabled)
     }
 
     func testStopShutsDownHost() async throws {
@@ -177,7 +174,6 @@ final class P2PNodeTests: XCTestCase {
 
         func start() throws {}
         func bootstrap(peers: [String]) throws {}
-        func enableNAT() throws {}
         func stop() throws {}
 
         func openStream(to peer: Peer) throws -> LibP2PStream {

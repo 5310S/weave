@@ -31,24 +31,31 @@ func multiaddrString(for address: String, port: UInt16) -> String {
 
 #if canImport(LibP2P)
 import LibP2P
+import NIO
 
-/// Concrete implementation backed by the real `swift-libp2p` `Host`.
+/// Concrete implementation backed by the real `swift-libp2p` `Swarm`.
 struct LibP2PHost: LibP2PHosting {
-    /// Underlying libp2p host instance.
-    private let host: Host
+    /// Manages transports for the swarm.
+    private let transportManager: TransportManager
+    /// Libp2p swarm responsible for dialing and listening.
+    private let swarm: Swarm
+    /// Event loop group driving the networking stack.
+    private let group: EventLoopGroup
 
     init() throws {
-        // Build a default host using libp2p's builder which configures
-        // transports, muxers and security implementations suitable for most
-        // use cases.
-        self.host = try HostBuilder().build()
+        // The new libp2p API separates transport configuration from the swarm
+        // that manages connections. A basic transport manager and swarm are
+        // created here for general usage.
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        self.group = group
+        self.transportManager = TransportManager(group: group)
+        self.swarm = try Swarm(transportManager: transportManager)
     }
 
     /// Start listening for connections.
     func start() throws {
-        // Many libp2p operations return an EventLoopFuture. Waiting here keeps
-        // the abstraction simple for callers.
-        try host.start().wait()
+        // Starting the transport manager brings up the underlying listeners.
+        try transportManager.start().wait()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -56,19 +63,14 @@ struct LibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) throws {
         for address in peers {
             let addr = try Multiaddr(address)
-            try host.bootstrap(to: addr).wait()
+            _ = try swarm.dial(addr).wait()
         }
-    }
-
-    /// Enable NAT traversal via AutoNAT/UPnP so the node becomes reachable from
-    /// outside the local network.
-    func enableNAT() throws {
-        try host.enableNAT().wait()
     }
 
     /// Shut down the host and release any associated resources.
     func stop() throws {
-        try host.stop().wait()
+        try transportManager.stop().wait()
+        try group.syncShutdownGracefully()
     }
 
     enum HostError: Error {
@@ -85,13 +87,13 @@ struct LibP2PHost: LibP2PHosting {
         }
         let maddr = multiaddrString(for: address, port: port)
         let addr = try Multiaddr(maddr)
-        let stream = try host.openStream(to: addr).wait()
+        let stream = try swarm.dial(addr).wait()
         return HostStream(peer: peer, stream: stream)
     }
 
     /// Register a handler for incoming streams initiated by remote peers.
     func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {
-        host.setStreamHandler { stream in
+        swarm.setStreamHandler { stream in
             // Derive a minimal `Peer` representation from the remote
             // connection. The remote address is extracted if available, but any
             // location information is left at defaults.
@@ -106,7 +108,7 @@ struct LibP2PHost: LibP2PHosting {
 
     /// The multiaddresses the underlying host is listening on.
     var listenAddresses: [String] {
-        host.listenAddresses.map { $0.description }
+        swarm.listenAddresses.map { $0.description }
     }
 }
 
@@ -146,8 +148,6 @@ protocol LibP2PHosting {
     func start() throws
     /// Connect to a set of bootstrap peers to join the network.
     func bootstrap(peers: [String]) throws
-    /// Enable NAT traversal so the node is reachable from the public internet.
-    func enableNAT() throws
     /// Shut down the host and release any resources.
     func stop() throws
     /// Open a new stream to the given peer.
@@ -321,8 +321,8 @@ actor P2PNode {
 
     }
 
-    /// Starts the networking stack by creating a libp2p host, performing
-    /// bootstrap against known peers and enabling NAT traversal.
+    /// Starts the networking stack by creating a libp2p host and performing
+    /// bootstrap against known peers.
     func start() throws {
         guard !isRunning else { return }
 
@@ -345,12 +345,6 @@ actor P2PNode {
             } catch {
                 logger.warning("Failed to bootstrap peers: \(error)")
             }
-        }
-
-        do {
-            try host.enableNAT()
-        } catch {
-            logger.warning("Failed to enable NAT: \(error)")
         }
 
         isRunning = true
