@@ -79,7 +79,18 @@ final class CoreLocationService: NSObject, CLLocationManagerDelegate {
 
     /// Begins requesting authorization and, once granted, updates.
     func start() {
-        switch manager.authorizationStatus {
+        let status: CLAuthorizationStatus
+        if #available(iOS 14.0, macOS 11.0, *) {
+            status = manager.authorizationStatus
+        } else {
+            status = CLLocationManager.authorizationStatus()
+        }
+
+        handleAuthorization(status: status)
+    }
+
+    private func handleAuthorization(status: CLAuthorizationStatus) {
+        switch status {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
         case .authorizedWhenInUse, .authorizedAlways:

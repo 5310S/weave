@@ -31,7 +31,9 @@ func multiaddrString(for address: String, port: UInt16) -> String {
 
 #if canImport(LibP2P)
 import LibP2P
+
 import NIO
+
 
 /// Concrete implementation backed by the real `swift-libp2p` `Swarm`.
 struct LibP2PHost: LibP2PHosting {
@@ -112,12 +114,12 @@ struct LibP2PHost: LibP2PHosting {
     }
 }
 
-/// Wrapper around libp2p's `Stream` type to conform to `LibP2PStream`.
+/// Wrapper around libp2p's `LibP2PCore.Stream` type to conform to `LibP2PStream`.
 private final class HostStream: LibP2PStream {
     let peer: Peer
-    private let stream: Stream
+    private let stream: LibP2PCore.Stream
 
-    init(peer: Peer, stream: Stream) {
+    init(peer: Peer, stream: LibP2PCore.Stream) {
         self.peer = peer
         self.stream = stream
     }
@@ -181,7 +183,7 @@ actor LibP2PNode {
     private let logger = Logger(label: "LibP2PNode")
 
     init(bootstrapPeers: [String] = [],
-         hostBuilder: @escaping () throws -> LibP2PHosting = {
+         hostBuilder: @escaping @Sendable () throws -> LibP2PHosting = { @Sendable in
             return try LibP2PHost()
          }) {
         self.bootstrapPeers = bootstrapPeers
@@ -307,7 +309,7 @@ actor P2PNode {
 
 
     init(bootstrapPeers: [String] = [],
-         hostBuilder: @escaping () throws -> LibP2PHosting = {
+         hostBuilder: @escaping @Sendable () throws -> LibP2PHosting = { @Sendable in
             return try LibP2PHost()
          },
          keyDerivation: @escaping (Curve25519.KeyAgreement.PrivateKey, Data) throws -> SymmetricKey = Encryption.deriveSharedSecret) {

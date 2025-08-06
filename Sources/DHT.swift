@@ -3,7 +3,7 @@ import LibP2P
 import Logging
 
 /// Errors that can occur when writing values to the DHT.
-public enum DHTError: Error {
+public enum DHTError: Error, Sendable {
     /// Encoding the peer identifier set failed.
     case encodingFailed(Error)
     /// The underlying Kademlia `put` operation failed.
@@ -13,7 +13,7 @@ public enum DHTError: Error {
 /// Protocol describing a minimal distributed hash table used for peer discovery.
 /// Implementations store peer IDs keyed by full geohashes and support lookups
 /// by geohash prefix.
-public protocol DHT {
+public protocol DHT: Sendable {
     /// Stores the given peer identifier under the provided full geohash.
     func store(peerID: UUID, geohash: String) async throws
 
@@ -29,7 +29,7 @@ public protocol DHT {
 /// identifiers stored under that prefix. Peers are indexed under their full
 /// geohash as well as all prefixes, mirroring the behavior of the libp2p
 /// backed implementation.
-public actor InMemoryDHT: DHT {
+public actor InMemoryDHT: DHT, Sendable {
     private var index: [String: Set<UUID>] = [:]
 
     public init() {}
@@ -64,7 +64,7 @@ public actor InMemoryDHT: DHT {
 /// Distributed hash table backed by libp2p's Kademlia implementation.
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
-public actor LibP2PDHT: DHT {
+public actor LibP2PDHT: DHT, Sendable {
     /// Underlying libp2p host instance.
     private let host: Host
     /// Kademlia DHT service provided by the host.
