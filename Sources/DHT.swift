@@ -5,11 +5,7 @@ import Logging
 #if canImport(NIO)
 import NIO
 #endif
-#if canImport(LibP2PKademlia)
 import LibP2PKademlia
-#elseif canImport(Kademlia)
-import Kademlia
-#endif
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
@@ -74,6 +70,7 @@ public actor InMemoryDHT: DHT, Sendable {
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT, Sendable {
+
     /// Transport driving libp2p networking.
     private let transport: LibP2PCore.Transport
     /// Host managing connections and protocols.
@@ -81,15 +78,19 @@ public actor LibP2PDHT: DHT, Sendable {
     /// Kademlia DHT service running on the host.
     private let kademlia: KademliaDHT
     /// Event loop group backing the transport manager.
+
     private let group: EventLoopGroup
     /// Logger for reporting DHT operations.
     private let logger = Logger(label: "DHT")
 
+
     /// Creates a new libp2p backed DHT. A fresh transport and host are
+
     /// constructed and started using the modern libp2p APIs.
     public init() throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
+
 
         let transport = LibP2PCore.Transport(group: group)
         self.transport = transport
@@ -108,13 +109,16 @@ public actor LibP2PDHT: DHT, Sendable {
     deinit {
         // Stop the transport and shut down the underlying event loops.
         try? transport.close()
+
         try? group.syncShutdownGracefully()
     }
 
     /// Connects this DHT's host to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
+
         _ = try host.dial(addr)
+
     }
 
     /// The multiaddresses this node is currently listening on.

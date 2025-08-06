@@ -46,30 +46,34 @@ struct LibP2PHost: LibP2PHosting {
     private let group: EventLoopGroup
 
     init() throws {
+
         // The latest libp2p API exposes builder utilities for constructing
         // transports and the host. We configure a basic TCP transport and
         // use it to build the host which manages connections.
+
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
 
-        // Build the concrete transport using the factory methods provided by
-        // swift-libp2p. The builder returns an async future which we wait on so
-        // initialisation remains synchronous for callers.
-        self.transport = try LibP2P.TransportBuilder(eventLoopGroup: group)
-            .build()
-            .wait()
+        // Create a TCP transport directly. Earlier revisions of swift-libp2p
+        // provide synchronous constructors rather than builder utilities, so
+        // no future is returned here.
+        self.transport = try TCPTransport(eventLoopGroup: group)
+
 
         // Create the host backed by the previously configured transport.
         self.host = try LibP2P.HostBuilder(eventLoopGroup: group)
             .withTransport(transport)
             .build()
             .wait()
+
     }
 
     /// Start listening for connections.
     func start() throws {
+
         // Start the host and block until listeners are ready.
         try host.start()
+
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -148,10 +152,16 @@ private final class HostStream: LibP2PStream {
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
-        stream.setReadHandler { buffer in
-            var buffer = buffer
-            if let data = buffer.readData(length: buffer.readableBytes) {
-                handler(data)
+        Task.detached { [stream] in
+            do {
+                for try await buffer in stream.readLoop() {
+                    var buffer = buffer
+                    if let data = buffer.readData(length: buffer.readableBytes) {
+                        handler(data)
+                    }
+                }
+            } catch {
+                // Ignore errors from the read loop for now.
             }
         }
     }
