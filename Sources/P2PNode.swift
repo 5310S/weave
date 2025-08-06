@@ -146,10 +146,16 @@ private final class HostStream: LibP2PStream {
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
-        stream.setReadHandler { buffer in
-            var buffer = buffer
-            if let data = buffer.readData(length: buffer.readableBytes) {
-                handler(data)
+        Task.detached { [stream] in
+            do {
+                for try await buffer in stream.readLoop() {
+                    var buffer = buffer
+                    if let data = buffer.readData(length: buffer.readableBytes) {
+                        handler(data)
+                    }
+                }
+            } catch {
+                // Ignore errors from the read loop for now.
             }
         }
     }
