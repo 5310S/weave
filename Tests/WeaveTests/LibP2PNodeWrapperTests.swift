@@ -10,7 +10,6 @@ final class LibP2PNodeWrapperTests: XCTestCase {
 
         func start() throws { started = true }
         func bootstrap(peers: [String]) throws { bootstrapped = peers }
-        func enableNAT() throws {}
         func stop() throws {}
         func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
         func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) { self.handler = handler }
@@ -49,7 +48,6 @@ final class LibP2PNodeWrapperTests: XCTestCase {
 
         func start() throws {}
         func bootstrap(peers: [String]) throws {}
-        func enableNAT() throws {}
         func stop() throws {}
 
         func openStream(to peer: Peer) throws -> LibP2PStream {

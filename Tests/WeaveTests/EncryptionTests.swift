@@ -63,7 +63,6 @@ final class EncryptionTests: XCTestCase {
 
             func start() throws {}
             func bootstrap(peers: [String]) throws {}
-            func enableNAT() throws {}
             func stop() throws {}
 
             func openStream(to peer: Peer) throws -> LibP2PStream {
