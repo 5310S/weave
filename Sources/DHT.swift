@@ -1,6 +1,12 @@
 import Foundation
 import LibP2P
 import Logging
+#if canImport(NIO)
+import NIO
+#endif
+#if canImport(Kademlia)
+import Kademlia
+#endif
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
@@ -65,42 +71,43 @@ public actor InMemoryDHT: DHT, Sendable {
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT, Sendable {
-    /// Underlying libp2p host instance.
-    private let host: Host
-    /// Kademlia DHT service provided by the host.
+    /// Transport manager driving libp2p networking.
+    private let transportManager: TransportManager
+    /// Swarm managing connections and protocols.
+    private let swarm: Swarm
+    /// Kademlia DHT service running on the swarm.
     private let kademlia: KademliaDHT
+    /// Event loop group backing the transport manager.
+    private let group: EventLoopGroup
     /// Logger for reporting DHT operations.
     private let logger = Logger(label: "DHT")
 
-    /// Creates a new libp2p backed DHT. A host may be provided when
-    /// integrating with an existing libp2p node. If omitted a fresh host is
-    /// constructed using libp2p's default `HostBuilder` and started
-    /// automatically.
-    public init(host: Host? = nil) throws {
-        if let host {
-            self.host = host
-            self.kademlia = host.kademlia
-        } else {
-            do {
-                let built = try HostBuilder().build()
-                _ = try built.start().wait()
-                self.host = built
-                self.kademlia = built.kademlia
-            } catch {
-                throw error
-            }
-        }
+    /// Creates a new libp2p backed DHT. When no swarm is provided a fresh
+    /// transport manager and swarm are constructed and started automatically.
+    public init() throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+        self.group = group
+        let transportManager = TransportManager(group: group)
+        self.transportManager = transportManager
+        self.swarm = try Swarm(transportManager: transportManager)
+        self.kademlia = KademliaDHT(swarm: swarm)
+        try transportManager.start().wait()
     }
 
-    /// Connects this DHT's host to another peer in the network.
+    deinit {
+        try? transportManager.stop().wait()
+        try? group.syncShutdownGracefully()
+    }
+
+    /// Connects this DHT's swarm to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
-        _ = try host.bootstrap(to: addr).wait()
+        _ = try swarm.dial(addr).wait()
     }
 
-    /// The multiaddresses this host is currently listening on.
+    /// The multiaddresses this node is currently listening on.
     public var listenAddresses: [String] {
-        host.listenAddresses.map { $0.description }
+        swarm.listenAddresses.map { $0.description }
     }
 
     public func store(peerID: UUID, geohash: String) async throws {
