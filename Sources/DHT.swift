@@ -5,11 +5,7 @@ import Logging
 #if canImport(NIO)
 import NIO
 #endif
-#if canImport(LibP2PKademlia)
 import LibP2PKademlia
-#elseif canImport(Kademlia)
-import Kademlia
-#endif
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
@@ -74,47 +70,48 @@ public actor InMemoryDHT: DHT, Sendable {
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT, Sendable {
-    /// Transport manager driving libp2p networking.
-    private let transport: LibP2PCore.TransportManager
+    /// Concrete transport used by the swarm.
+    private let transport: LibP2PCore.Transport
     /// Swarm managing connections and protocols.
     private let swarm: LibP2PCore.Swarm
     /// Kademlia DHT service running on the swarm.
-    private let kademlia: KademliaDHT
-    /// Event loop group backing the transport manager.
+    private let kademlia: LibP2PKademlia.KademliaDHT
+    /// Event loop group backing the networking stack.
     private let group: EventLoopGroup
     /// Logger for reporting DHT operations.
     private let logger = Logger(label: "DHT")
 
-    /// Creates a new libp2p backed DHT. A fresh transport manager and swarm are
+    /// Creates a new libp2p backed DHT. A fresh transport and swarm are
     /// constructed and started using the modern libp2p APIs.
     public init() throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
 
-        let transport = LibP2PCore.TransportManager(group: group)
-        self.transport = transport
+        self.transport = try LibP2P.TransportBuilder(eventLoopGroup: group)
+            .build()
+            .wait()
 
-        let swarm = try LibP2PCore.Swarm(transportManager: transport)
-        self.swarm = swarm
+        self.swarm = try LibP2P.SwarmBuilder(eventLoopGroup: group)
+            .withTransport(transport)
+            .build()
+            .wait()
 
-        self.kademlia = KademliaDHT(swarm: swarm)
+        self.kademlia = LibP2PKademlia.KademliaDHT(swarm: swarm)
 
-        // Start the transport and swarm. The modern API uses synchronous
-        // start methods which may throw.
-        try transport.start()
-        try swarm.start()
+        // Start the swarm using its asynchronous API.
+        try swarm.start().wait()
     }
 
     deinit {
-        // Stop the transport and shut down the underlying event loops.
-        try? transport.stop()
+        // Close the swarm and shut down the underlying event loops.
+        try? swarm.close().wait()
         try? group.syncShutdownGracefully()
     }
 
     /// Connects this DHT's swarm to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
-        _ = try swarm.dial(addr)
+        _ = try swarm.dial(addr).wait()
     }
 
     /// The multiaddresses this node is currently listening on.
