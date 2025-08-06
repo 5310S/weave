@@ -107,8 +107,9 @@ public actor LibP2PDHT: DHT, Sendable {
     }
 
     deinit {
-        // Stop the transport and shut down the underlying event loops.
-        try? transport.close()
+
+        // Close the transport and then shut down the underlying event loops.
+        try? transport.close().wait()
 
         try? group.syncShutdownGracefully()
     }
