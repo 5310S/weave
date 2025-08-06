@@ -119,9 +119,9 @@ public actor LibP2PDHT: DHT, Sendable {
         let addr = try Multiaddr(address)
 
         do {
-            // The dial API now returns a future; wait for the connection
-            // attempt to complete so any errors are surfaced here.
-            _ = try swarm.dial(addr).wait()
+            // Dial synchronously and wait for the connection attempt to
+            // complete so any errors are surfaced here.
+            _ = try host.dial(addr)
         } catch {
             logger.error("Failed to dial bootstrap peer \(address): \(error)")
             throw error
