@@ -74,52 +74,52 @@ public actor InMemoryDHT: DHT, Sendable {
 /// Peer identifiers are stored under their full geohash as well as all
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT, Sendable {
-    /// Transport manager driving libp2p networking.
-    private let transport: LibP2PCore.TransportManager
-    /// Swarm managing connections and protocols.
-    private let swarm: LibP2PCore.Swarm
-    /// Kademlia DHT service running on the swarm.
+    /// Transport driving libp2p networking.
+    private let transport: LibP2PCore.Transport
+    /// Host managing connections and protocols.
+    private let host: LibP2PCore.Host
+    /// Kademlia DHT service running on the host.
     private let kademlia: KademliaDHT
     /// Event loop group backing the transport manager.
     private let group: EventLoopGroup
     /// Logger for reporting DHT operations.
     private let logger = Logger(label: "DHT")
 
-    /// Creates a new libp2p backed DHT. A fresh transport manager and swarm are
+    /// Creates a new libp2p backed DHT. A fresh transport and host are
     /// constructed and started using the modern libp2p APIs.
     public init() throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
 
-        let transport = LibP2PCore.TransportManager(group: group)
+        let transport = LibP2PCore.Transport(group: group)
         self.transport = transport
 
-        let swarm = try LibP2PCore.Swarm(transportManager: transport)
-        self.swarm = swarm
+        let host = try LibP2PCore.Host(transport: transport)
+        self.host = host
 
-        self.kademlia = KademliaDHT(swarm: swarm)
+        self.kademlia = KademliaDHT(host: host)
 
-        // Start the transport and swarm. The modern API uses synchronous
+        // Start the transport and host. The modern API uses synchronous
         // start methods which may throw.
         try transport.start()
-        try swarm.start()
+        try host.start()
     }
 
     deinit {
         // Stop the transport and shut down the underlying event loops.
-        try? transport.stop()
+        try? transport.close()
         try? group.syncShutdownGracefully()
     }
 
-    /// Connects this DHT's swarm to another peer in the network.
+    /// Connects this DHT's host to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
-        _ = try swarm.dial(addr)
+        _ = try host.dial(addr)
     }
 
     /// The multiaddresses this node is currently listening on.
     public var listenAddresses: [String] {
-        swarm.listenAddresses.map { $0.description }
+        host.listenAddresses.map { $0.description }
     }
 
     public func store(peerID: UUID, geohash: String) async throws {
