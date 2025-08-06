@@ -8,7 +8,7 @@ actor PeerManager {
     private var peerIndex: [UUID: Peer] = [:]
     private var blocked: Set<UUID> = []
     private var liked: Set<UUID> = []
-    private let dht: any DHT
+    private nonisolated let dht: any DHT
     /// Approximate geohash cell width in kilometers for each precision level.
     /// Values are based on the standard geohash specification and provide
     /// coarse bounds used for candidate pre-filtering.
