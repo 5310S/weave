@@ -125,7 +125,9 @@ private final class HostStream: LibP2PStream {
     }
 
     func write(_ data: Data) throws {
-        try stream.write(data).wait()
+        var buffer = ByteBufferAllocator().buffer(capacity: data.count)
+        buffer.writeBytes(data)
+        try stream.write(buffer).wait()
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
