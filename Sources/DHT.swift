@@ -5,7 +5,7 @@ import Logging
 #if canImport(NIO)
 import NIO
 #endif
-import Kademlia
+import KadDHT
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
@@ -76,7 +76,7 @@ public actor LibP2PDHT: DHT, Sendable {
     /// Host managing connections and protocols.
     private let host: LibP2PCore.Host
     /// Kademlia DHT service running on the host.
-    private let kademlia: LibP2PKademlia
+    private let kademlia: LibP2PKadDHT
     /// Event loop group backing the transport manager.
 
     private let group: EventLoopGroup
@@ -98,7 +98,7 @@ public actor LibP2PDHT: DHT, Sendable {
         let host = try LibP2PCore.Host(transport: transport)
         self.host = host
 
-        self.kademlia = LibP2PKademlia(host: host)
+        self.kademlia = LibP2PKadDHT(host: host)
 
         // Start the transport and host. The modern API uses synchronous
         // start methods which may throw.
