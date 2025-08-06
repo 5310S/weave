@@ -46,30 +46,27 @@ struct LibP2PHost: LibP2PHosting {
     private let group: EventLoopGroup
 
     init() throws {
-        // The latest libp2p API exposes builder utilities for constructing
-        // transports and the swarm/host. We configure a basic TCP transport and
-        // use it to build the swarm which manages connections.
+        // Configure the event loop group that will back the networking stack.
+        // This mirrors the synchronous setup used by older swift-libp2p
+        // releases which expose direct initialisers instead of builders.
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
 
-        // Build the concrete transport using the factory methods provided by
-        // swift-libp2p. The builder returns an async future which we wait on so
-        // initialisation remains synchronous for callers.
-        self.transport = try LibP2P.TransportBuilder(eventLoopGroup: group)
-            .build()
-            .wait()
+        // Create a TCP transport directly. Earlier revisions of swift-libp2p
+        // provide synchronous constructors rather than builder utilities, so
+        // no future is returned here.
+        self.transport = try TCPTransport(eventLoopGroup: group)
 
-        // Create the swarm/host backed by the previously configured transport.
-        self.swarm = try LibP2P.SwarmBuilder(eventLoopGroup: group)
-            .withTransport(transport)
-            .build()
-            .wait()
+        // Instantiate the swarm using the previously created transport. As
+        // with the transport, this uses the synchronous initialiser available
+        // in the pinned dependency revision.
+        self.swarm = try Swarm(transport: transport, eventLoopGroup: group)
     }
 
     /// Start listening for connections.
     func start() throws {
-        // The new API returns an async task when starting; block until the
-        // underlying listeners are ready.
+        // Starting the swarm is asynchronous; wait so callers only proceed
+        // once listening has completed.
         try swarm.start().wait()
     }
 
