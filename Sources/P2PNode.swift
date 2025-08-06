@@ -200,7 +200,7 @@ actor LibP2PNode {
         self.host = host
 
         host.setStreamHandler { stream in
-            Task { await self.handleIncoming(stream: stream) }
+            Task { self.handleIncoming(stream: stream) }
         }
         do {
             try host.start()
@@ -235,7 +235,7 @@ actor LibP2PNode {
         guard let host = host else { return nil }
         let stream = try host.openStream(to: peer)
         stream.setDataHandler { data in
-            Task { await self.handleIncomingData(data, from: stream.peer) }
+            Task { self.handleIncomingData(data, from: stream.peer) }
         }
         return stream
     }
@@ -254,7 +254,7 @@ actor LibP2PNode {
     /// Handles a newly opened incoming stream by registering a data handler.
     private func handleIncoming(stream: LibP2PStream) {
         stream.setDataHandler { data in
-            Task { await self.handleIncomingData(data, from: stream.peer) }
+            Task { self.handleIncomingData(data, from: stream.peer) }
         }
     }
 
@@ -331,7 +331,7 @@ actor P2PNode {
         let host = try hostBuilder()
         self.host = host
         host.setStreamHandler { stream in
-            Task { await self.handleIncoming(stream: stream) }
+            Task { self.handleIncoming(stream: stream) }
         }
 
         do {
@@ -383,7 +383,7 @@ actor P2PNode {
         guard let host = host else { return nil }
         let stream = try host.openStream(to: peer)
         stream.setDataHandler { data in
-            Task { await self.handleIncomingData(data, over: stream) }
+            Task { self.handleIncomingData(data, over: stream) }
         }
         return stream
     }
@@ -462,7 +462,7 @@ actor P2PNode {
     /// Handles a newly opened incoming stream.
     private func handleIncoming(stream: LibP2PStream) {
         stream.setDataHandler { data in
-            Task { await self.handleIncomingData(data, over: stream) }
+            Task { self.handleIncomingData(data, over: stream) }
         }
     }
 
