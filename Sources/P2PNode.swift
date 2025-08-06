@@ -36,19 +36,21 @@ import LibP2PCore
 import NIO
 
 
-/// Concrete implementation backed by the real `swift-libp2p` `Swarm`.
+/// Concrete implementation backed by the real `swift-libp2p` `Host`.
 struct LibP2PHost: LibP2PHosting {
-    /// Concrete transport used by the underlying swarm.
+    /// Concrete transport used by the underlying host.
     private let transport: LibP2PCore.Transport
-    /// Libp2p swarm responsible for dialing and listening.
-    private let swarm: LibP2PCore.Swarm
+    /// Libp2p host responsible for dialing and listening.
+    private let host: LibP2PCore.Host
     /// Event loop group driving the networking stack.
     private let group: EventLoopGroup
 
     init() throws {
-        // Configure the event loop group that will back the networking stack.
-        // This mirrors the synchronous setup used by older swift-libp2p
-        // releases which expose direct initialisers instead of builders.
+
+        // The latest libp2p API exposes builder utilities for constructing
+        // transports and the host. We configure a basic TCP transport and
+        // use it to build the host which manages connections.
+
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
 
@@ -57,17 +59,21 @@ struct LibP2PHost: LibP2PHosting {
         // no future is returned here.
         self.transport = try TCPTransport(eventLoopGroup: group)
 
-        // Instantiate the swarm using the previously created transport. As
-        // with the transport, this uses the synchronous initialiser available
-        // in the pinned dependency revision.
-        self.swarm = try Swarm(transport: transport, eventLoopGroup: group)
+
+        // Create the host backed by the previously configured transport.
+        self.host = try LibP2P.HostBuilder(eventLoopGroup: group)
+            .withTransport(transport)
+            .build()
+            .wait()
+
     }
 
     /// Start listening for connections.
     func start() throws {
-        // Starting the swarm is asynchronous; wait so callers only proceed
-        // once listening has completed.
-        try swarm.start().wait()
+
+        // Start the host and block until listeners are ready.
+        try host.start()
+
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -75,16 +81,16 @@ struct LibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) throws {
         for address in peers {
             let addr = try Multiaddr(address)
-            // Dial returns a future; wait for the connection attempt to
+            // Dial synchronously and wait for the connection attempt to
             // complete before moving onto the next address.
-            _ = try swarm.dial(addr).wait()
+            _ = try host.dial(addr)
         }
     }
 
     /// Shut down the host and release any associated resources.
     func stop() throws {
-        // Shut down the swarm/host and then the underlying event loop group.
-        try swarm.close().wait()
+        // Shut down the host and then the underlying event loop group.
+        try host.close()
         try group.syncShutdownGracefully()
     }
 
@@ -102,13 +108,13 @@ struct LibP2PHost: LibP2PHosting {
         }
         let maddr = multiaddrString(for: address, port: port)
         let addr = try Multiaddr(maddr)
-        let stream = try swarm.dial(addr).wait()
+        let stream = try host.dial(addr)
         return HostStream(peer: peer, stream: stream)
     }
 
     /// Register a handler for incoming streams initiated by remote peers.
     func setStreamHandler(_ handler: @escaping (LibP2PStream) -> Void) {
-        swarm.setStreamHandler { stream in
+        host.setStreamHandler { stream in
             // Derive a minimal `Peer` representation from the remote
             // connection. The remote address is extracted if available, but any
             // location information is left at defaults.
@@ -123,7 +129,7 @@ struct LibP2PHost: LibP2PHosting {
 
     /// The multiaddresses the underlying host is listening on.
     var listenAddresses: [String] {
-        swarm.listenAddresses.map { $0.description }
+        host.listenAddresses.map { $0.description }
     }
 }
 
