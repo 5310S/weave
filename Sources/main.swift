@@ -61,9 +61,11 @@ struct Main {
 
         // Like and then unlike the moving peer
         await manager.like(id: movingPeer.id)
-        logger.info("Liked peers: \(await manager.likedPeers().count)")
+        let likedCount = await manager.likedPeers().count
+        logger.info("Liked peers: \(likedCount)")
         await manager.unlike(id: movingPeer.id)
-        logger.info("Liked peers after unlike: \(await manager.likedPeers().count)")
+        let likedCountAfterUnlike = await manager.likedPeers().count
+        logger.info("Liked peers after unlike: \(likedCountAfterUnlike)")
         // Like again to demonstrate mutual match detection
         await manager.like(id: movingPeer.id)
         let mutual = await manager.mutualLikes(for: me.id)
@@ -87,13 +89,16 @@ struct Main {
 
         // Change the peer's display name
         await manager.updateName(id: movingPeer.id, name: "Traveler")
-        logger.info("Peer name after update: \(await manager.peer(id: movingPeer.id)?.name ?? "none")")
+        let updatedName = await manager.peer(id: movingPeer.id)?.name ?? "none"
+        logger.info("Peer name after update: \(updatedName)")
 
         // Update a single attribute and then remove it
         await manager.updateAttribute(id: movingPeer.id, key: "hobby", value: "climbing")
-        logger.info("Updated hobby: \(await manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none")")
+        let updatedHobby = await manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none"
+        logger.info("Updated hobby: \(updatedHobby)")
         await manager.removeAttribute(id: movingPeer.id, key: "hobby")
-        logger.info("Hobby after removal: \(await manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none")")
+        let hobbyAfterRemoval = await manager.peer(id: movingPeer.id)?.attributes["hobby"] ?? "none"
+        logger.info("Hobby after removal: \(hobbyAfterRemoval)")
 
         let hikers = await manager.peers(near: selfLat, longitude: selfLon, radius: 5000.0, matching: ["hobby": "hiking"])
         logger.info("Hikers within 5000km: \(hikers.count)")
@@ -113,16 +118,20 @@ struct Main {
         try? await manager.save(to: store)
         let restored = PeerManager()
         try? await restored.load(from: store)
-        logger.info("Restored \(await restored.allPeers().count) peer(s) from disk (blocked peers excluded)")
+        let restoredCount = await restored.allPeers().count
+        logger.info("Restored \(restoredCount) peer(s) from disk (blocked peers excluded)")
         await restored.unblock(id: laPeer.id)
-        logger.info("After unblocking LA user post-restore: \(await restored.allPeers().count) peer(s)")
+        let postUnblockCount = await restored.allPeers().count
+        logger.info("After unblocking LA user post-restore: \(postUnblockCount) peer(s)")
 
         // Demonstrate pruning stale peers
         let stalePeer = try! Peer(latitude: 35.0, longitude: -120.0, lastSeen: Date(timeIntervalSinceNow: -7200))
         try? await manager.add(stalePeer)
-        logger.info("Total peers before pruning: \(await manager.allPeers().count)")
+        let totalBeforePrune = await manager.allPeers().count
+        logger.info("Total peers before pruning: \(totalBeforePrune)")
         try? await manager.pruneStale(before: Date(timeIntervalSinceNow: -3600))
-        logger.info("Peers after pruning stale entries: \(await manager.allPeers().count)")
+        let totalAfterPrune = await manager.allPeers().count
+        logger.info("Peers after pruning stale entries: \(totalAfterPrune)")
 
         // Fetch the most recently seen peers
         let recent = await manager.recentPeers(limit: 2)
