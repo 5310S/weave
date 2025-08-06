@@ -1,10 +1,13 @@
 import Foundation
 import LibP2P
+import LibP2PCore
 import Logging
 #if canImport(NIO)
 import NIO
 #endif
-#if canImport(Kademlia)
+#if canImport(LibP2PKademlia)
+import LibP2PKademlia
+#elseif canImport(Kademlia)
 import Kademlia
 #endif
 
@@ -72,9 +75,9 @@ public actor InMemoryDHT: DHT, Sendable {
 /// geohash prefixes to allow efficient prefix lookups.
 public actor LibP2PDHT: DHT, Sendable {
     /// Transport manager driving libp2p networking.
-    private let transportManager: TransportManager
+    private let transport: LibP2PCore.TransportManager
     /// Swarm managing connections and protocols.
-    private let swarm: Swarm
+    private let swarm: LibP2PCore.Swarm
     /// Kademlia DHT service running on the swarm.
     private let kademlia: KademliaDHT
     /// Event loop group backing the transport manager.
@@ -82,27 +85,36 @@ public actor LibP2PDHT: DHT, Sendable {
     /// Logger for reporting DHT operations.
     private let logger = Logger(label: "DHT")
 
-    /// Creates a new libp2p backed DHT. When no swarm is provided a fresh
-    /// transport manager and swarm are constructed and started automatically.
+    /// Creates a new libp2p backed DHT. A fresh transport manager and swarm are
+    /// constructed and started using the modern libp2p APIs.
     public init() throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
-        let transportManager = TransportManager(group: group)
-        self.transportManager = transportManager
-        self.swarm = try Swarm(transportManager: transportManager)
+
+        let transport = LibP2PCore.TransportManager(group: group)
+        self.transport = transport
+
+        let swarm = try LibP2PCore.Swarm(transportManager: transport)
+        self.swarm = swarm
+
         self.kademlia = KademliaDHT(swarm: swarm)
-        try transportManager.start().wait()
+
+        // Start the transport and swarm. The modern API uses synchronous
+        // start methods which may throw.
+        try transport.start()
+        try swarm.start()
     }
 
     deinit {
-        try? transportManager.stop().wait()
+        // Stop the transport and shut down the underlying event loops.
+        try? transport.stop()
         try? group.syncShutdownGracefully()
     }
 
     /// Connects this DHT's swarm to another peer in the network.
     public func bootstrap(to address: String) throws {
         let addr = try Multiaddr(address)
-        _ = try swarm.dial(addr).wait()
+        _ = try swarm.dial(addr)
     }
 
     /// The multiaddresses this node is currently listening on.
