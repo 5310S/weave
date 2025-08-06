@@ -8,7 +8,7 @@ final class P2PNodeTests: XCTestCase {
         var bootstrapped: [String] = []
         var stopCount = 0
 
-        func start() throws { startCount += 1 }
+        func start() async throws { startCount += 1 }
         func bootstrap(peers: [String]) throws { bootstrapped = peers }
         func stop() throws { stopCount += 1 }
         func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
@@ -172,7 +172,7 @@ final class P2PNodeTests: XCTestCase {
 
         func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
 
-        func start() throws {}
+        func start() async throws {}
         func bootstrap(peers: [String]) throws {}
         func stop() throws {}
 
@@ -264,10 +264,10 @@ final class P2PNodeTests: XCTestCase {
         }
         await nodeB.setErrorHandler { _, _ in expError.fulfill() }
 
-        await nodeA.start()
-        await nodeB.start()
+        try await nodeA.start()
+        try await nodeB.start()
 
-        let streamAB = await nodeA.openStream(to: peerB)!
+        let streamAB = try await nodeA.openStream(to: peerB)!
         // Send unencrypted data which will fail decryption on nodeB
         streamAB.write(Data("garbage".utf8))
 

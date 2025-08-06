@@ -8,7 +8,7 @@ final class LibP2PNodeWrapperTests: XCTestCase {
         var bootstrapped: [String] = []
         var handler: ((LibP2PStream) -> Void)?
 
-        func start() throws { started = true }
+        func start() async throws { started = true }
         func bootstrap(peers: [String]) throws { bootstrapped = peers }
         func stop() throws {}
         func openStream(to peer: Peer) throws -> LibP2PStream { NoopLibP2PStream(peer: peer) }
@@ -46,7 +46,7 @@ final class LibP2PNodeWrapperTests: XCTestCase {
 
         func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
 
-        func start() throws {}
+        func start() async throws {}
         func bootstrap(peers: [String]) throws {}
         func stop() throws {}
 
