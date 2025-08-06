@@ -135,7 +135,10 @@ struct PeerStore {
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try sealedBox.combined.write(to: url, options: .atomic)
+        guard let combined = sealedBox.combined else {
+            throw StoreError.encryptionFailed
+        }
+        try combined.write(to: url, options: .atomic)
     }
 
     /// Loads peers and blocked/liked IDs from disk. Returns empty collections if the
