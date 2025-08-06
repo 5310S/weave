@@ -5,7 +5,7 @@ import Logging
 #if canImport(NIO)
 import NIO
 #endif
-import LibP2PKademlia
+import Kademlia
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
