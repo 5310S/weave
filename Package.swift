@@ -24,7 +24,7 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 // Once released, this product will expose the libp2p host implementation.
                 .product(name: "LibP2P", package: "swift-libp2p"),
-                .product(name: "KademliaDHT", package: "swift-libp2p"),
+                .product(name: "LibP2PKademlia", package: "swift-libp2p"),
                 .product(name: "Logging", package: "swift-log")
             ]),
         .testTarget(
