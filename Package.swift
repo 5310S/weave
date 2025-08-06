@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "weave",
+    platforms: [.macOS(.v10_15)],
     products: [
         .executable(name: "weave", targets: ["weave"])
     ],
