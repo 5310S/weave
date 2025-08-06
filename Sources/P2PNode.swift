@@ -73,7 +73,7 @@ struct LibP2PHost: LibP2PHosting {
     func start() async throws {
         // The new API returns an async task when starting; wait for completion
         // before returning to ensure listeners are ready.
-        try await swarm.start()
+        try await host.start()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
