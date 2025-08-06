@@ -67,10 +67,10 @@ struct LibP2PHost: LibP2PHosting {
     }
 
     /// Start listening for connections.
-    func start() throws {
-        // The new API returns an async task when starting; block until the
-        // underlying listeners are ready.
-        try swarm.start().wait()
+    func start() async throws {
+        // The new API returns an async task when starting; wait for completion
+        // before returning to ensure listeners are ready.
+        try await swarm.start()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -172,7 +172,7 @@ protocol LibP2PStream {
 /// Abstraction over the underlying libp2p host so it can be mocked in tests.
 protocol LibP2PHosting {
     /// Start listening for connections and initialise any required services.
-    func start() throws
+    func start() async throws
     /// Connect to a set of bootstrap peers to join the network.
     func bootstrap(peers: [String]) throws
     /// Shut down the host and release any resources.
@@ -218,7 +218,7 @@ actor LibP2PNode {
     /// Start the underlying host and bootstrap to the configured peers. A
     /// stream handler is registered so incoming messages are automatically
     /// decoded and forwarded to the registered message handler.
-    func start() throws {
+    func start() async throws {
         guard host == nil else { return }
 
         let host = try hostBuilder()
@@ -228,7 +228,7 @@ actor LibP2PNode {
             Task { self.handleIncoming(stream: stream) }
         }
         do {
-            try host.start()
+            try await host.start()
             if !bootstrapPeers.isEmpty {
                 try host.bootstrap(peers: bootstrapPeers)
             }
@@ -350,7 +350,7 @@ actor P2PNode {
 
     /// Starts the networking stack by creating a libp2p host and performing
     /// bootstrap against known peers.
-    func start() throws {
+    func start() async throws {
         guard !isRunning else { return }
 
         let host = try hostBuilder()
@@ -360,7 +360,7 @@ actor P2PNode {
         }
 
         do {
-            try host.start()
+            try await host.start()
         } catch {
             logger.error("Failed to start host: \(error)")
             throw error

@@ -61,7 +61,7 @@ final class EncryptionTests: XCTestCase {
 
             func connect(to host: StreamHost, as peer: Peer) { peers[peer.id] = (host, peer) }
 
-            func start() throws {}
+            func start() async throws {}
             func bootstrap(peers: [String]) throws {}
             func stop() throws {}
 
@@ -100,8 +100,8 @@ final class EncryptionTests: XCTestCase {
             exp.fulfill()
         }
 
-        await nodeA.start()
-        await nodeB.start()
+        try await nodeA.start()
+        try await nodeB.start()
 
         let stream = try await nodeA.openStream(to: peerB)! as! MockStream
         var captured: Data?
