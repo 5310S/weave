@@ -31,33 +31,34 @@ func multiaddrString(for address: String, port: UInt16) -> String {
 
 #if canImport(LibP2P)
 import LibP2P
+import LibP2PCore
 
 import NIO
 
 
 /// Concrete implementation backed by the real `swift-libp2p` `Swarm`.
 struct LibP2PHost: LibP2PHosting {
-    /// Manages transports for the swarm.
-    private let transportManager: TransportManager
+    /// Concrete transport used by the underlying swarm.
+    private let transport: LibP2PCore.TransportManager
     /// Libp2p swarm responsible for dialing and listening.
-    private let swarm: Swarm
+    private let swarm: LibP2PCore.Swarm
     /// Event loop group driving the networking stack.
     private let group: EventLoopGroup
 
     init() throws {
         // The new libp2p API separates transport configuration from the swarm
-        // that manages connections. A basic transport manager and swarm are
-        // created here for general usage.
+        // that manages connections. A basic transport and swarm are created here
+        // for general usage.
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.group = group
-        self.transportManager = TransportManager(group: group)
-        self.swarm = try Swarm(transportManager: transportManager)
+        self.transport = LibP2PCore.TransportManager(group: group)
+        self.swarm = try LibP2PCore.Swarm(transportManager: transport)
     }
 
     /// Start listening for connections.
     func start() throws {
-        // Starting the transport manager brings up the underlying listeners.
-        try transportManager.start().wait()
+        // Starting the transport brings up the underlying listeners.
+        try transport.start()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
@@ -65,13 +66,13 @@ struct LibP2PHost: LibP2PHosting {
     func bootstrap(peers: [String]) throws {
         for address in peers {
             let addr = try Multiaddr(address)
-            _ = try swarm.dial(addr).wait()
+            _ = try swarm.dial(addr)
         }
     }
 
     /// Shut down the host and release any associated resources.
     func stop() throws {
-        try transportManager.stop().wait()
+        try transport.stop()
         try group.syncShutdownGracefully()
     }
 
@@ -89,7 +90,7 @@ struct LibP2PHost: LibP2PHosting {
         }
         let maddr = multiaddrString(for: address, port: port)
         let addr = try Multiaddr(maddr)
-        let stream = try swarm.dial(addr).wait()
+        let stream = try swarm.dial(addr)
         return HostStream(peer: peer, stream: stream)
     }
 
@@ -125,7 +126,7 @@ private final class HostStream: LibP2PStream {
     }
 
     func write(_ data: Data) throws {
-        try stream.write(data).wait()
+        try stream.write(data)
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
