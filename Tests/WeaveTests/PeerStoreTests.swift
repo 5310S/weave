@@ -53,4 +53,21 @@ final class PeerStoreTests: XCTestCase {
         XCTAssertNoThrow(try store.save(peers: [peer], blocked: []))
         XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
     }
+
+    func testIncrementalSavesMaintainIntegrity() throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = PeerStore(url: tempURL)
+        var peers: [Peer] = []
+
+        for i in 0..<5 {
+            for j in 0..<200 {
+                let index = i * 200 + j
+                let peer = try Peer(latitude: Double(index), longitude: Double(index))
+                peers.append(peer)
+            }
+            try store.save(peers: peers, blocked: [])
+            let loadedPeers = try store.load().peers
+            XCTAssertEqual(loadedPeers, peers)
+        }
+    }
 }

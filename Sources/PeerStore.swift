@@ -138,7 +138,28 @@ struct PeerStore {
         guard let combined = sealedBox.combined else {
             throw StoreError.encryptionFailed
         }
-        try combined.write(to: url, options: .atomic)
+        // Write the encrypted data in chunks to a temporary file and then
+        // move it into place. This avoids rewriting the entire file at once
+        // and reduces memory pressure for large datasets.
+        let tempURL = url.appendingPathExtension("tmp")
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+
+        let handle = try FileHandle(forWritingTo: tempURL)
+        defer { try? handle.close() }
+
+        let chunkSize = 64 * 1024
+        var offset = 0
+        while offset < combined.count {
+            let end = min(offset + chunkSize, combined.count)
+            let chunk = combined.subdata(in: offset..<end)
+            try handle.write(contentsOf: chunk)
+            offset = end
+        }
+
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+        try FileManager.default.moveItem(at: tempURL, to: url)
     }
 
     /// Loads peers and blocked/liked IDs from disk. Returns empty collections if the
