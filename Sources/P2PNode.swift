@@ -32,6 +32,7 @@ func multiaddrString(for address: String, port: UInt16) -> String {
 #if canImport(LibP2P)
 import LibP2P
 import LibP2PCore
+import LibP2PTransportTCP
 
 import NIO
 
@@ -39,9 +40,9 @@ import NIO
 /// Concrete implementation backed by the real `swift-libp2p` `Host`.
 struct LibP2PHost: LibP2PHosting {
     /// Concrete transport used by the underlying host.
-    private let transport: LibP2PCore.Transport
+    private let transport: TCPTransport
     /// Libp2p host responsible for dialing and listening.
-    private let host: LibP2PCore.Host
+    private let host: LibP2P.Host
     /// Event loop group driving the networking stack.
     private let group: EventLoopGroup
 
@@ -61,7 +62,7 @@ struct LibP2PHost: LibP2PHosting {
 
 
         // Create the host backed by the previously configured transport.
-        self.host = try LibP2P.HostBuilder(eventLoopGroup: group)
+        self.host = try LibP2PCore.HostBuilder(eventLoopGroup: group)
             .withTransport(transport)
             .build()
             .wait()
@@ -90,7 +91,7 @@ struct LibP2PHost: LibP2PHosting {
     /// Shut down the host and release any associated resources.
     func stop() throws {
         // Shut down the host and then the underlying event loop group.
-        try host.close()
+        try host.stop()
         try group.syncShutdownGracefully()
     }
 
@@ -155,7 +156,7 @@ private final class HostStream: LibP2PStream {
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
         Task.detached { [stream, logger] in
             do {
-                for try await buffer in stream.readLoop() {
+                while let buffer = try await stream.read() {
                     var buffer = buffer
                     if let data = buffer.readData(length: buffer.readableBytes) {
                         handler(data)
