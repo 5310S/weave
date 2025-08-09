@@ -61,7 +61,9 @@ struct LibP2PHost: LibP2PHosting {
         self.transport = try TCPTransport(eventLoopGroup: group)
 
 
-        // Create the host backed by the previously configured transport.
+        // Create the host backed by the previously configured transport. The
+        // modern libp2p API uses a builder pattern that returns a future, so we
+        // block here to obtain the fully constructed host instance.
         self.host = try LibP2PCore.HostBuilder(eventLoopGroup: group)
             .withTransport(transport)
             .build()
