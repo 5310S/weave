@@ -137,6 +137,7 @@ struct LibP2PHost: LibP2PHosting {
 private final class HostStream: LibP2PStream {
     let peer: Peer
     private let stream: LibP2PCore.Stream
+    private let logger = Logger(label: "HostStream")
 
     init(peer: Peer, stream: LibP2PCore.Stream) {
         self.peer = peer
@@ -152,7 +153,7 @@ private final class HostStream: LibP2PStream {
     }
 
     func setDataHandler(_ handler: @escaping (Data) -> Void) {
-        Task.detached { [stream] in
+        Task.detached { [stream, logger] in
             do {
                 for try await buffer in stream.readLoop() {
                     var buffer = buffer
@@ -161,7 +162,7 @@ private final class HostStream: LibP2PStream {
                     }
                 }
             } catch {
-                // Ignore errors from the read loop for now.
+                logger.error("Read loop failed: \(error)")
             }
         }
     }
