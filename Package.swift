@@ -15,6 +15,8 @@ let package = Package(
         .package(url: "https://github.com/swift-libp2p/swift-libp2p.git", branch: "main"),
         // Updated to the new Kademlia DHT package name.
         .package(url: "https://github.com/swift-libp2p/swift-libp2p-kad-dht.git", branch: "main"),
+        // TCP transport implementation extracted into its own package.
+        .package(url: "https://github.com/swift-libp2p/swift-libp2p-transport-tcp.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.13.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
         // Property-based testing framework used in the test suite.
@@ -28,7 +30,8 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 // Once released, this product will expose the libp2p host implementation.
                 .product(name: "LibP2P", package: "swift-libp2p"),
-                .product(name: "LibP2PTransportTCP", package: "swift-libp2p"),
+                // TCP transport product now lives in a dedicated package.
+                .product(name: "LibP2PTransportTCP", package: "swift-libp2p-transport-tcp"),
                 // Updated product name for the Kademlia DHT implementation.
                 .product(name: "LibP2PKadDHT", package: "swift-libp2p-kad-dht"),
                 .product(name: "Logging", package: "swift-log")
