@@ -16,7 +16,9 @@ let package = Package(
         // Updated to the new Kademlia DHT package name.
         .package(url: "https://github.com/swift-libp2p/swift-libp2p-kad-dht.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.13.3"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2")
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
+        // Property-based testing framework used in the test suite.
+        .package(url: "https://github.com/typelift/SwiftCheck.git", from: "0.12.0")
     ],
     targets: [
         // Targets define modules or test suites.
@@ -32,6 +34,9 @@ let package = Package(
             ]),
         .testTarget(
             name: "WeaveTests",
-            dependencies: ["weave"])
+            dependencies: [
+                "weave",
+                .product(name: "SwiftCheck", package: "SwiftCheck")
+            ])
     ]
 )
