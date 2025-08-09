@@ -70,11 +70,11 @@ struct LibP2PHost: LibP2PHosting {
     }
 
     /// Start listening for connections.
-
     func start() async throws {
-        // The new API returns an async task when starting; wait for completion
-        // before returning to ensure listeners are ready.
-        try await host.start()
+        // Starting the host is a synchronous operation. We expose an
+        // `async` signature to conform to `LibP2PHosting` but no suspension is
+        // required here.
+        try host.start()
     }
 
     /// Connect to a list of bootstrap peers so the node can discover the wider
