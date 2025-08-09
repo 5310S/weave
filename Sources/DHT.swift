@@ -104,7 +104,9 @@ public actor LibP2PDHT: DHT, Sendable {
 
         self.kademlia = KademliaDHT(host: host)
 
-        // Start the host which will implicitly start the transport.
+        // Start the host which will implicitly start the transport. The new
+        // libp2p API exposes synchronous start/stop operations so this call
+        // does not suspend.
         try host.start()
     }
 
