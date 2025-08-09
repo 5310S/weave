@@ -130,7 +130,7 @@ public actor LibP2PDHT: DHT, Sendable {
 
     /// The multiaddresses this node is currently listening on.
     public var listenAddresses: [String] {
-        host.listenAddresses.map { $0.description }
+        host.listeners.map { $0.address.description }
     }
 
     public func store(peerID: UUID, geohash: String) async throws {

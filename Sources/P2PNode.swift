@@ -129,7 +129,7 @@ struct LibP2PHost: LibP2PHosting {
 
     /// The multiaddresses the underlying host is listening on.
     var listenAddresses: [String] {
-        host.listenAddresses.map { $0.description }
+        host.listeners.map { $0.address.description }
     }
 }
 

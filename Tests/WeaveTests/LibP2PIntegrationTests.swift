@@ -6,8 +6,10 @@ final class LibP2PIntegrationTests: XCTestCase {
         let dhtA = try LibP2PDHT()
         let dhtB = try LibP2PDHT()
         // Connect the DHT instances so stored values propagate
-        for addr in await dhtA.listenAddresses { try await dhtB.bootstrap(to: addr) }
-        for addr in await dhtB.listenAddresses { try await dhtA.bootstrap(to: addr) }
+        let addrsA = await dhtA.listenAddresses
+        for addr in addrsA { try await dhtB.bootstrap(to: addr) }
+        let addrsB = await dhtB.listenAddresses
+        for addr in addrsB { try await dhtA.bootstrap(to: addr) }
 
         let peerID = UUID()
         try await dhtA.store(peerID: peerID, geohash: "u4pruydqqvj")
