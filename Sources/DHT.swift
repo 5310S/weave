@@ -6,6 +6,7 @@ import Logging
 import NIO
 #endif
 import LibP2PKadDHT
+import LibP2PTransportTCP
 
 /// Errors that can occur when writing values to the DHT.
 public enum DHTError: Error, Sendable {
@@ -72,11 +73,11 @@ public actor InMemoryDHT: DHT, Sendable {
 public actor LibP2PDHT: DHT, Sendable {
 
     /// Transport driving libp2p networking.
-    private let transport: LibP2PCore.Transport
+    private let transport: TCPTransport
     /// Host managing connections and protocols.
-    private let host: LibP2PCore.Host
+    private let host: LibP2P.Host
     /// Kademlia DHT service running on the host.
-    private let kademlia: LibP2PKadDHT
+    private let kademlia: KademliaDHT
     /// Event loop group backing the transport manager.
 
     private let group: EventLoopGroup
@@ -92,25 +93,24 @@ public actor LibP2PDHT: DHT, Sendable {
         self.group = group
 
 
-        let transport = LibP2PCore.Transport(group: group)
+        let transport = try TCPTransport(eventLoopGroup: group)
         self.transport = transport
 
-        let host = try LibP2PCore.Host(transport: transport)
+        let host = try LibP2PCore.HostBuilder(eventLoopGroup: group)
+            .withTransport(transport)
+            .build()
+            .wait()
         self.host = host
 
-        self.kademlia = LibP2PKadDHT(host: host)
+        self.kademlia = KademliaDHT(host: host)
 
-        // Start the transport and host. The modern API uses synchronous
-        // start methods which may throw.
-        try transport.start()
+        // Start the host which will implicitly start the transport.
         try host.start()
     }
 
     deinit {
 
-        // Close the transport and then shut down the underlying event loops.
-        try? transport.close().wait()
-
+        try? host.stop()
         try? group.syncShutdownGracefully()
     }
 
