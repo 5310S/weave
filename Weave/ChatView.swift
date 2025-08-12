@@ -15,7 +15,9 @@ struct ChatView: View {
                         Text(msg)
                             .frame(maxWidth: .infinity, alignment: msg.starts(with: "Me:") ? .trailing : .leading)
                             .padding(4)
+
                             .background(Color(UIColor.systemGray6))
+
                             .cornerRadius(8)
                     }
                 }
