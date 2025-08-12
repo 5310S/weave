@@ -1,6 +1,8 @@
 import Foundation
 import MultipeerConnectivity
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Handles peer discovery and message exchange using Apple's
 /// ``MultipeerConnectivity`` framework. This class automatically advertises
@@ -9,7 +11,13 @@ import UIKit
 /// to all connected peers and appended to the ``messages`` array.
 class PeerConnection: NSObject, ObservableObject {
     private let serviceType = "weave-chat"
-    private let myPeerID = MCPeerID(displayName: UIDevice.current.name)
+    private let myPeerID: MCPeerID = {
+#if canImport(UIKit)
+        MCPeerID(displayName: UIDevice.current.name)
+#else
+        MCPeerID(displayName: ProcessInfo.processInfo.hostName)
+#endif
+    }()
     private let serviceAdvertiser: MCNearbyServiceAdvertiser
     private let serviceBrowser: MCNearbyServiceBrowser
 
