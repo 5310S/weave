@@ -7,17 +7,15 @@
 
 import SwiftUI
 
+/// Root view for the application. Displays the chat interface so two
+/// peers can exchange messages once a connection is established.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        ChatView()
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     ContentView()
