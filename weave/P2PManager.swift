@@ -7,6 +7,7 @@ import Combine
 /// a known host. Received text messages are published via the `messages` array.
 class P2PManager: ObservableObject {
     @Published var messages: [String] = []
+    @Published var publicAddress: String = ""
 
     private var listener: NWListener?
     private var connection: NWConnection?
@@ -29,6 +30,18 @@ class P2PManager: ObservableObject {
     /// Indicates whether the manager is currently listening for peers.
     var isListening: Bool {
         listener != nil
+    }
+
+    /// Retrieve the device's public IP address for sharing with peers.
+    func fetchPublicIP() {
+        guard let url = URL(string: "https://api.ipify.org?format=text") else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            if let data, let ip = String(data: data, encoding: .utf8) {
+                DispatchQueue.main.async {
+                    self?.publicAddress = ip.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }.resume()
     }
 
     /// Connect to a remote peer at the given host and port.
