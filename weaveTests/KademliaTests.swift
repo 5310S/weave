@@ -2,17 +2,27 @@ import Testing
 @testable import weave
 
 struct KademliaTests {
-    /// Storing a value on a bootstrap node should allow a joined
-    /// node to retrieve it via the simplistic lookup mechanism.
-    @Test func storeAndLookup() async throws {
-        let bootstrap = KademliaNode(id: 1)
-        let node = KademliaNode(id: 2)
-        node.join(bootstrap: bootstrap)
+    /// Two nodes should be able to exchange a value through the simplified
+    /// Kademlia network using UDP messages.
+    @Test func networkStoreAndLookup() async throws {
+        let nodeA = KademliaNode(id: 1, port: 4100)
+        try nodeA.start()
+        defer { nodeA.stop() }
 
-        let key: UInt64 = 42
-        bootstrap.store(value: "hello", for: key)
+        let nodeB = KademliaNode(id: 2, port: 4101)
+        try nodeB.start()
+        defer { nodeB.stop() }
 
-        let result = node.findValue(for: key)
-        #expect(result == "hello")
+        // Join B to A's network and store a value on A
+        nodeB.join(bootstrapHost: "127.0.0.1", port: 4100)
+        nodeA.store(value: "hello", for: 99)
+
+        // Lookup from B and wait for asynchronous completion
+        let value = await withCheckedContinuation { continuation in
+            nodeB.findValue(for: 99) { result in
+                continuation.resume(returning: result)
+            }
+        }
+        #expect(value == "hello")
     }
 }
