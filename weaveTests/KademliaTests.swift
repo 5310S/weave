@@ -1,3 +1,4 @@
+
 import XCTest
 @testable import weave
 
@@ -23,6 +24,8 @@ final class KademliaTests: XCTestCase {
                 continuation.resume(returning: result)
             }
         }
+
         XCTAssertEqual(value, "hello")
+
     }
 }
