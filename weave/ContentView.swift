@@ -41,6 +41,7 @@ struct ContentView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
                 Button("Connect") {
+                    print("Connect button tapped with host: \(host) port: \(port)")
                     if let p = UInt16(port) {
                         manager.connect(to: host, port: p)
                     }
@@ -51,6 +52,7 @@ struct ContentView: View {
                 TextField("Message", text: $outgoing)
                     .textFieldStyle(.roundedBorder)
                 Button("Send") {
+                    print("Send button tapped with message: \(outgoing)")
                     manager.send(outgoing)
                     outgoing = ""
                 }
@@ -62,6 +64,7 @@ struct ContentView: View {
         }
         .padding()
         .onAppear {
+            print("ContentView appeared")
             if let p = UInt16(port) {
                 manager.startListening(on: p)
             }
