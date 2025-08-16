@@ -1,10 +1,11 @@
-import Testing
+
+import XCTest
 @testable import weave
 
-struct KademliaTests {
+final class KademliaTests: XCTestCase {
     /// Two nodes should be able to exchange a value through the simplified
     /// Kademlia network using UDP messages.
-    @Test func networkStoreAndLookup() async throws {
+    func testNetworkStoreAndLookup() async throws {
         let nodeA = KademliaNode(id: 1, port: 4100)
         try nodeA.start()
         defer { nodeA.stop() }
@@ -23,6 +24,8 @@ struct KademliaTests {
                 continuation.resume(returning: result)
             }
         }
-        #expect(value == "hello")
+
+        XCTAssertEqual(value, "hello")
+
     }
 }
