@@ -6,6 +6,11 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @StateObject private var manager = P2PManager()
@@ -15,6 +20,20 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 20) {
+            VStack {
+                Text("Your Address: \(manager.publicAddress.isEmpty ? "?" : manager.publicAddress):\(port)")
+#if os(iOS)
+                Button("Copy Address") {
+                    UIPasteboard.general.string = "\(manager.publicAddress):\(port)"
+                }
+#elseif os(macOS)
+                Button("Copy Address") {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString("\(manager.publicAddress):\(port)", forType: .string)
+                }
+#endif
+            }
             HStack {
                 TextField("Host", text: $host)
                     .textFieldStyle(.roundedBorder)
@@ -46,6 +65,7 @@ struct ContentView: View {
             if let p = UInt16(port) {
                 manager.startListening(on: p)
             }
+            manager.fetchPublicIP()
         }
     }
 }
