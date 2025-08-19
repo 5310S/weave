@@ -7,6 +7,7 @@ class P2PManager: ObservableObject {
     @Published var publicAddress: String = ""
     @Published var publicPort: UInt16 = 9999
     @Published var connectionStatus: String = "Disconnected"
+    @Published var debugEvents: [String] = [] // New: Publish debug events for UI
     private var listener: NWListener?
     private var connection: NWConnection?
     private let queue = DispatchQueue(label: "P2PManager")
@@ -19,8 +20,10 @@ class P2PManager: ObservableObject {
         do {
             try kademlia.start()
             log("Kademlia DHT started on port \(port)")
+            debugEvents.append("DHT started on port \(port)")
         } catch {
             log("Kademlia failed to start: \(error)")
+            debugEvents.append("DHT failed to start: \(error)")
         }
     }
 
@@ -31,6 +34,7 @@ class P2PManager: ObservableObject {
 
     func startListening(on port: UInt16) {
         log("startListening on port \(port)")
+        debugEvents.append("Starting TCP listener on port \(port)")
         do {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
@@ -41,20 +45,24 @@ class P2PManager: ObservableObject {
                 self.log("Listener state changed: \(state)")
                 DispatchQueue.main.async {
                     self.connectionStatus = "\(state)"
+                    self.debugEvents.append("TCP listener state: \(state)")
                 }
             }
             listener?.newConnectionHandler = { [weak self] newConnection in
                 guard let self else { return }
                 self.log("Accepted new incoming connection")
+                self.debugEvents.append("Accepted incoming connection")
                 self.setupConnection(newConnection)
                 newConnection.start(queue: self.queue)
             }
             listener?.start(queue: queue)
             log("Listening started successfully")
+            debugEvents.append("TCP listening started")
         } catch {
             log("Listener failed to start: \(error)")
             DispatchQueue.main.async {
                 self.connectionStatus = "Failed to start: \(error)"
+                self.debugEvents.append("TCP listener failed: \(error)")
             }
         }
     }
@@ -65,6 +73,7 @@ class P2PManager: ObservableObject {
 
     func fetchPublicIP() {
         log("Fetching public IP and port with STUN")
+        debugEvents.append("Fetching public IP/port with STUN")
         let servers = [
             ("stun.l.google.com", UInt16(19302)),
             ("stun.ekiga.net", UInt16(3478)),
@@ -75,9 +84,11 @@ class P2PManager: ObservableObject {
         func tryServer(index: Int) {
             guard index < servers.count else {
                 log("All STUN servers failed, falling back to HTTP")
+                debugEvents.append("All STUN servers failed, trying HTTP fallback")
                 guard let url = URL(string: "https://api.ipify.org?format=text") else {
                     DispatchQueue.main.async {
                         self.connectionStatus = "HTTP fallback URL invalid"
+                        self.debugEvents.append("HTTP fallback URL invalid")
                     }
                     return
                 }
@@ -87,12 +98,14 @@ class P2PManager: ObservableObject {
                         self.log("HTTP IP fetch error: \(error.localizedDescription)")
                         DispatchQueue.main.async {
                             self.connectionStatus = "HTTP IP fetch failed: \(error.localizedDescription)"
+                            self.debugEvents.append("HTTP IP fetch failed: \(error.localizedDescription)")
                         }
                         return
                     }
                     guard let data, let ip = String(data: data, encoding: .utf8) else {
                         DispatchQueue.main.async {
                             self.connectionStatus = "HTTP IP fetch returned no data"
+                            self.debugEvents.append("HTTP IP fetch returned no data")
                         }
                         return
                     }
@@ -100,6 +113,7 @@ class P2PManager: ObservableObject {
                         self.publicAddress = ip.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.publicPort = 9999
                         self.log("HTTP public IP: \(self.publicAddress), port: 9999")
+                        self.debugEvents.append("HTTP fetched IP: \(self.publicAddress), port: 9999")
                         self.storePublicAddress()
                     }
                 }.resume()
@@ -107,11 +121,15 @@ class P2PManager: ObservableObject {
             }
             let (server, port) = servers[index]
             log("Trying STUN server: \(server):\(port)")
+            debugEvents.append("Trying STUN server: \(server):\(port)")
             let stunClient = STUNClient(server: server, port: port)
             stunClient.getPublicAddress { [weak self] ip, port, error in
                 guard let self else { return }
                 if let error {
                     self.log("STUN error on \(server): \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self.debugEvents.append("STUN error on \(server): \(error.localizedDescription)")
+                    }
                     tryServer(index: index + 1)
                     return
                 }
@@ -120,6 +138,7 @@ class P2PManager: ObservableObject {
                         self.publicAddress = ip.trimmingCharacters(in: .whitespacesAndNewlines)
                         self.publicPort = port
                         self.log("STUN public IP: \(ip), port: \(port)")
+                        self.debugEvents.append("STUN success: \(ip):\(port)")
                         self.storePublicAddress()
                     }
                 } else {
@@ -132,44 +151,53 @@ class P2PManager: ObservableObject {
 
     func connect(toPeerWithID peerID: UInt64) {
         log("Searching for peer with ID \(peerID)")
+        debugEvents.append("Searching for peer ID: \(peerID)")
         kademlia.findValue(for: peerID) { [weak self] value in
             guard let self else { return }
             guard let value, let peerData = value.data(using: .utf8),
                   let peer = try? JSONDecoder().decode(KademliaNode.Peer.self, from: peerData) else {
                 DispatchQueue.main.async {
                     self.connectionStatus = "Peer not found or invalid data"
+                    self.debugEvents.append("Peer not found or invalid data for ID: \(peerID)")
                 }
                 return
             }
             log("Found peer: \(peer.host):\(peer.port)")
+            debugEvents.append("Found peer: \(peer.host):\(peer.port)")
             self.connect(to: peer.host, port: peer.port)
         }
     }
 
     func connect(to host: String, port: UInt16) {
         log("Attempting to connect to \(host):\(port)")
+        debugEvents.append("Connecting to \(host):\(port)")
         connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
         connection?.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
             self.log("Connection state changed: \(state)")
             DispatchQueue.main.async {
                 self.connectionStatus = "\(state)"
+                self.debugEvents.append("Connection state: \(state)")
             }
             if case .failed(let error) = state {
                 self.log("Connection failed: \(error)")
+                self.debugEvents.append("Connection failed: \(error)")
             }
         }
         connection?.start(queue: queue)
         log("Connection started")
+        debugEvents.append("Connection started")
         setupReceive()
     }
 
     func send(_ text: String) {
         log("Sending message: \(text)")
+        debugEvents.append("Sending message: \(text)")
         guard let connection else {
             log("Cannot send, no active connection")
             DispatchQueue.main.async {
                 self.connectionStatus = "No active connection"
+                self.debugEvents.append("Cannot send: No active connection")
             }
             return
         }
@@ -180,23 +208,31 @@ class P2PManager: ObservableObject {
                 self.log("Send error: \(error)")
                 DispatchQueue.main.async {
                     self.connectionStatus = "Send failed: \(error)"
+                    self.debugEvents.append("Send failed: \(error)")
                 }
             }
         })
     }
 
     func storePublicAddress() {
-        guard !publicAddress.isEmpty else { return }
+        guard !publicAddress.isEmpty else {
+            debugEvents.append("Cannot store address: Public address empty")
+            return
+        }
         let peer = KademliaNode.Peer(id: kademlia.id, host: publicAddress, port: publicPort)
         if let data = try? JSONEncoder().encode(peer) {
             kademlia.store(value: String(data: data, encoding: .utf8) ?? "", for: kademlia.id)
             log("Stored public address in DHT: \(publicAddress):\(publicPort) for ID \(kademlia.id)")
+            debugEvents.append("Stored address in DHT: \(publicAddress):\(publicPort)")
+        } else {
+            debugEvents.append("Failed to encode peer for DHT storage")
         }
     }
 
     func joinNetwork(bootstrapHost: String, port: UInt16) {
         kademlia.join(bootstrapHost: bootstrapHost, port: port)
         log("Joined DHT network via \(bootstrapHost):\(port)")
+        debugEvents.append("Joined DHT network via \(bootstrapHost):\(port)")
     }
 
     func disconnect() {
@@ -204,36 +240,42 @@ class P2PManager: ObservableObject {
         connection = nil
         DispatchQueue.main.async {
             self.connectionStatus = "Disconnected"
+            self.debugEvents.append("Disconnected")
         }
         log("Disconnected")
     }
 
     private func setupConnection(_ connection: NWConnection) {
         log("Setting up connection")
+        debugEvents.append("Setting up connection")
         self.connection = connection
         setupReceive()
     }
 
     private func setupReceive() {
         log("Preparing to receive data")
+        debugEvents.append("Preparing to receive data")
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 65535) { [weak self] data, _, isComplete, error in
             guard let self else { return }
             if let data, let text = String(data: data, encoding: .utf8) {
                 self.log("Received message: \(text)")
                 DispatchQueue.main.async {
                     self.messages.append(text)
+                    self.debugEvents.append("Received message: \(text)")
                 }
             }
             if let error {
                 self.log("Receive error: \(error)")
                 DispatchQueue.main.async {
                     self.connectionStatus = "Receive error: \(error)"
+                    self.debugEvents.append("Receive error: \(error)")
                 }
             }
             if isComplete {
                 self.log("Receive completed")
                 DispatchQueue.main.async {
                     self.connectionStatus = "Connection closed"
+                    self.debugEvents.append("Connection closed")
                 }
             }
             if error == nil && !isComplete {
