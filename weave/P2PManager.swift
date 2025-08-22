@@ -2,6 +2,7 @@ import Foundation
 import Network
 import Combine
 
+@available(iOS 13.0, macOS 10.15, *)
 class P2PManager: ObservableObject {
     @Published var messages: [String] = []
     @Published var publicAddress: String = ""

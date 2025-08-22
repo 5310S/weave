@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "weave",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v13),
+        .iOS(.v13)
     ],
     products: [
         .library(name: "weave", targets: ["weave"])
