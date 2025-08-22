@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  weave
-//
-//  Created by keios on 8/15/25.
-//
-
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -13,41 +6,57 @@ import AppKit
 #endif
 
 struct ContentView: View {
-    @StateObject private var manager = P2PManager()
-    @State private var host: String = ""
-    @State private var port: String = "9999"
+    @StateObject private var manager = P2PManager(port: 9999)
+    @State private var bootstrapHost: String = ""
+    @State private var peerID: String = ""
     @State private var outgoing: String = ""
+    @State private var showError: Bool = false
 
     var body: some View {
         VStack(spacing: 20) {
             VStack {
-                Text("Your Address: \(manager.publicAddress.isEmpty ? "?" : manager.publicAddress):\(port)")
-#if os(iOS)
+                Text("Your Node ID: \(manager.nodeID)")
+                Text("Your Address: \(manager.publicAddress.isEmpty ? "?" : manager.publicAddress):\(manager.publicPort)")
+                Text("Status: \(manager.connectionStatus)")
+                #if os(iOS)
                 Button("Copy Address") {
-                    UIPasteboard.general.string = "\(manager.publicAddress):\(port)"
+                    UIPasteboard.general.string = "\(manager.publicAddress):\(manager.publicPort)"
                 }
-#elseif os(macOS)
+                #elseif os(macOS)
                 Button("Copy Address") {
                     let pasteboard = NSPasteboard.general
                     pasteboard.clearContents()
-                    pasteboard.setString("\(manager.publicAddress):\(port)", forType: .string)
+                    pasteboard.setString("\(manager.publicAddress):\(manager.publicPort)", forType: .string)
                 }
-#endif
+                #endif
+                Button("Retry Address Fetch") {
+                    print("Retrying address fetch")
+                    manager.fetchPublicIP()
+                }
+                .opacity(manager.publicAddress.isEmpty ? 1 : 0)
             }
             HStack {
-                TextField("Host", text: $host)
+                TextField("Bootstrap Host", text: $bootstrapHost)
                     .textFieldStyle(.roundedBorder)
-                TextField("Port", text: $port)
+                Button("Join Network") {
+                    print("Joining network with bootstrap host: \(bootstrapHost)")
+                    manager.joinNetwork(bootstrapHost: bootstrapHost, port: 9999)
+                    manager.storePublicAddress()
+                }
+            }
+            HStack {
+                TextField("Peer ID", text: $peerID)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
                 Button("Connect") {
-                    print("Connect button tapped with host: \(host) port: \(port)")
-                    if let p = UInt16(port) {
-                        manager.connect(to: host, port: p)
+                    print("Connect button tapped with peer ID: \(peerID)")
+                    if let id = UInt64(peerID) {
+                        manager.connect(toPeerWithID: id)
+                    } else {
+                        manager.connectionStatus = "Invalid peer ID"
+                        showError = true
                     }
                 }
             }
-
             HStack {
                 TextField("Message", text: $outgoing)
                     .textFieldStyle(.roundedBorder)
@@ -57,7 +66,6 @@ struct ContentView: View {
                     outgoing = ""
                 }
             }
-
             List(manager.messages, id: \.self) { msg in
                 Text(msg)
             }
@@ -65,10 +73,21 @@ struct ContentView: View {
         .padding()
         .onAppear {
             print("ContentView appeared")
-            if let p = UInt16(port) {
-                manager.startListening(on: p)
-            }
+            manager.startListening(on: 9999)
             manager.fetchPublicIP()
+        }
+        .alert(isPresented: $showError) {
+            Alert(
+                title: Text("Error"),
+                message: Text(manager.connectionStatus),
+                primaryButton: .default(Text("Retry")) {
+                    manager.fetchPublicIP()
+                    showError = false
+                },
+                secondaryButton: .cancel {
+                    showError = false
+                }
+            )
         }
     }
 }
