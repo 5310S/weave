@@ -7,6 +7,7 @@ class P2PManager: ObservableObject {
     @Published var publicAddress: String = ""
     @Published var publicPort: UInt16 = 9999
     @Published var connectionStatus: String = "Disconnected"
+    @Published var logs: [String] = []
     private var listener: NWListener?
     private var connection: NWConnection?
     private let queue = DispatchQueue(label: "P2PManager")
@@ -24,9 +25,12 @@ class P2PManager: ObservableObject {
         }
     }
 
-    private func log(_ message: String) {
+    func log(_ message: String) {
         guard debugLogsEnabled else { return }
         print("[P2PManager] \(message)")
+        DispatchQueue.main.async {
+            self.logs.append(message)
+        }
     }
 
     func startListening(on port: UInt16) {
