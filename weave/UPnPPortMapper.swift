@@ -28,7 +28,7 @@ ST:urn:schemas-upnp-org:service:WANIPConnection:1\r
         let connection = NWConnection(host: "239.255.255.250", port: 1900, using: .udp)
         connection.stateUpdateHandler = { [weak self] state in
             if case .ready = state {
-                connection.send(content: message.data(using: .utf8)) { error in
+                connection.send(content: message.data(using: .utf8), completion: .contentProcessed { error in
                     if let error {
                         self?.log("SSDP send failed: \(error)")
                         completion(nil)
@@ -55,7 +55,7 @@ ST:urn:schemas-upnp-org:service:WANIPConnection:1\r
                         }
                         self?.fetchControlURL(from: url, completion: completion)
                     }
-                }
+                })
             } else if case .failed(let error) = state {
                 self?.log("SSDP connection failed: \(error)")
                 completion(nil)
