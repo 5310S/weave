@@ -7,15 +7,21 @@ class P2PManager: ObservableObject {
     @Published var publicAddress: String = ""
     @Published var publicPort: UInt16 = 9999
     @Published var connectionStatus: String = "Disconnected"
+    @Published var logs: [String] = []
     private var listener: NWListener?
     private var connection: NWConnection?
     private let queue = DispatchQueue(label: "P2PManager")
     private let kademlia: KademliaNode
+    private let upnp: UPnPPortMapper
     public var nodeID: UInt64 { kademlia.id }
     private let debugLogsEnabled = true
 
     init(port: UInt16) {
         self.kademlia = KademliaNode(id: UInt64.random(in: 0..<UInt64.max), port: port)
+        self.upnp = UPnPPortMapper()
+        self.upnp.logger = { [weak self] msg in
+            self?.log("UPnP: \(msg)")
+        }
         do {
             try kademlia.start()
             log("Kademlia DHT started on port \(port)")
@@ -24,9 +30,12 @@ class P2PManager: ObservableObject {
         }
     }
 
-    private func log(_ message: String) {
+    func log(_ message: String) {
         guard debugLogsEnabled else { return }
         print("[P2PManager] \(message)")
+        DispatchQueue.main.async {
+            self.logs.append(message)
+        }
     }
 
     func startListening(on port: UInt16) {
@@ -51,6 +60,9 @@ class P2PManager: ObservableObject {
             }
             listener?.start(queue: queue)
             log("Listening started successfully")
+            upnp.addPortMapping(port: port) { [weak self] success in
+                self?.log("UPnP port mapping \(success ? "succeeded" : "failed") for port \(port)")
+            }
         } catch {
             log("Listener failed to start: \(error)")
             DispatchQueue.main.async {

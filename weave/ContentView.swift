@@ -30,7 +30,7 @@ struct ContentView: View {
                 }
                 #endif
                 Button("Retry Address Fetch") {
-                    print("Retrying address fetch")
+                    manager.log("Retry Address Fetch tapped")
                     manager.fetchPublicIP()
                 }
                 .opacity(manager.publicAddress.isEmpty ? 1 : 0)
@@ -39,7 +39,7 @@ struct ContentView: View {
                 TextField("Bootstrap Host", text: $bootstrapHost)
                     .textFieldStyle(.roundedBorder)
                 Button("Join Network") {
-                    print("Joining network with bootstrap host: \(bootstrapHost)")
+                    manager.log("Join Network tapped with bootstrap host: \(bootstrapHost)")
                     manager.joinNetwork(bootstrapHost: bootstrapHost, port: 9999)
                     manager.storePublicAddress()
                 }
@@ -48,12 +48,13 @@ struct ContentView: View {
                 TextField("Peer ID", text: $peerID)
                     .textFieldStyle(.roundedBorder)
                 Button("Connect") {
-                    print("Connect button tapped with peer ID: \(peerID)")
+                    manager.log("Connect tapped with peer ID: \(peerID)")
                     if let id = UInt64(peerID) {
                         manager.connect(toPeerWithID: id)
                     } else {
                         manager.connectionStatus = "Invalid peer ID"
                         showError = true
+                        manager.log("Invalid peer ID entered")
                     }
                 }
             }
@@ -61,18 +62,29 @@ struct ContentView: View {
                 TextField("Message", text: $outgoing)
                     .textFieldStyle(.roundedBorder)
                 Button("Send") {
-                    print("Send button tapped with message: \(outgoing)")
+                    manager.log("Send tapped with message: \(outgoing)")
                     manager.send(outgoing)
                     outgoing = ""
                 }
             }
-            List(manager.messages, id: \.self) { msg in
-                Text(msg)
+            List {
+                Section(header: Text("Messages")) {
+                    ForEach(manager.messages, id: \.self) { msg in
+                        Text(msg)
+                    }
+                }
+                Section(header: Text("Debug Logs")) {
+                    ForEach(manager.logs, id: \.self) { log in
+                        Text(log)
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                    }
+                }
             }
         }
         .padding()
         .onAppear {
-            print("ContentView appeared")
+            manager.log("ContentView appeared")
             manager.startListening(on: 9999)
             manager.fetchPublicIP()
         }
@@ -81,11 +93,13 @@ struct ContentView: View {
                 title: Text("Error"),
                 message: Text(manager.connectionStatus),
                 primaryButton: .default(Text("Retry")) {
+                    manager.log("Retry after error")
                     manager.fetchPublicIP()
                     showError = false
                 },
                 secondaryButton: .cancel {
                     showError = false
+                    manager.log("Error alert dismissed")
                 }
             )
         }
