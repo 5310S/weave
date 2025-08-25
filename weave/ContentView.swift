@@ -14,7 +14,7 @@ public struct ContentView: View {
 
     public init() {}
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 20) {
             VStack {
                 Text("Your Node ID: \(manager.nodeID)")
