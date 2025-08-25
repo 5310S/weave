@@ -14,7 +14,8 @@ let package = Package(
         .target(
             name: "weave",
             path: "weave",
-            exclude: ["ContentView.swift", "weaveApp.swift", "Assets.xcassets", "weave.entitlements"]
+            exclude: ["ContentView.swift", "weaveApp.swift", "Assets.xcassets", "weave.entitlements"],
+            sources: ["Kademlia.swift", "P2PManager.swift", "UPnPPortMapper.swift"]
         ),
         .executableTarget(
             name: "weaveApp",
