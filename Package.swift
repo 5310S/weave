@@ -14,13 +14,14 @@ let package = Package(
         .target(
             name: "weave",
             path: "weave",
-            exclude: ["weaveApp.swift", "Assets.xcassets", "weave.entitlements"],
+            exclude: ["weaveApp.swift", "Assets.xcassets", "weave.entitlements", "Info.plist"],
             sources: ["Kademlia.swift", "P2PManager.swift", "UPnPPortMapper.swift", "ContentView.swift"]
         ),
         .executableTarget(
             name: "weaveApp",
             dependencies: ["weave"],
             path: "weave",
+            exclude: ["Kademlia.swift", "P2PManager.swift", "UPnPPortMapper.swift", "ContentView.swift", "Info.plist"],
             sources: ["weaveApp.swift"],
             resources: [
                 .process("Assets.xcassets"),
