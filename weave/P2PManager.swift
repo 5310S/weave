@@ -2,12 +2,12 @@ import Foundation
 import Network
 import Combine
 
-class P2PManager: ObservableObject {
-    @Published var messages: [String] = []
-    @Published var publicAddress: String = ""
-    @Published var publicPort: UInt16 = 9999
-    @Published var connectionStatus: String = "Disconnected"
-    @Published var logs: [String] = []
+public class P2PManager: ObservableObject {
+    @Published public var messages: [String] = []
+    @Published public var publicAddress: String = ""
+    @Published public var publicPort: UInt16 = 9999
+    @Published public var connectionStatus: String = "Disconnected"
+    @Published public var logs: [String] = []
     private var listener: NWListener?
     private var connection: NWConnection?
     private let queue = DispatchQueue(label: "P2PManager")
@@ -16,7 +16,7 @@ class P2PManager: ObservableObject {
     public var nodeID: UInt64 { kademlia.id }
     private let debugLogsEnabled = true
 
-    init(port: UInt16) {
+    public init(port: UInt16 = 9999) {
         self.kademlia = KademliaNode(id: UInt64.random(in: 0..<UInt64.max), port: port)
         self.upnp = UPnPPortMapper()
         self.upnp.logger = { [weak self] msg in
@@ -30,7 +30,7 @@ class P2PManager: ObservableObject {
         }
     }
 
-    func log(_ message: String) {
+    public func log(_ message: String) {
         guard debugLogsEnabled else { return }
         print("[P2PManager] \(message)")
         DispatchQueue.main.async {
@@ -38,7 +38,7 @@ class P2PManager: ObservableObject {
         }
     }
 
-    func startListening(on port: UInt16) {
+    public func startListening(on port: UInt16) {
         log("startListening on port \(port)")
         do {
             let parameters = NWParameters.tcp
@@ -71,11 +71,11 @@ class P2PManager: ObservableObject {
         }
     }
 
-    var isListening: Bool {
+    public var isListening: Bool {
         listener != nil
     }
 
-    func fetchPublicIP() {
+    public func fetchPublicIP() {
         log("Fetching public IP and port with STUN")
         let servers = [
             ("stun.l.google.com", UInt16(19302)),
@@ -142,7 +142,7 @@ class P2PManager: ObservableObject {
         tryServer(index: 0)
     }
 
-    func connect(toPeerWithID peerID: UInt64) {
+    public func connect(toPeerWithID peerID: UInt64) {
         log("Searching for peer with ID \(peerID)")
         kademlia.findValue(for: peerID) { [weak self] value in
             guard let self else { return }
@@ -158,7 +158,7 @@ class P2PManager: ObservableObject {
         }
     }
 
-    func connect(to host: String, port: UInt16) {
+    public func connect(to host: String, port: UInt16) {
         log("Attempting to connect to \(host):\(port)")
         connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
         connection?.stateUpdateHandler = { [weak self] state in
@@ -176,7 +176,7 @@ class P2PManager: ObservableObject {
         setupReceive()
     }
 
-    func send(_ text: String) {
+    public func send(_ text: String) {
         log("Sending message: \(text)")
         guard let connection else {
             log("Cannot send, no active connection")
@@ -197,7 +197,7 @@ class P2PManager: ObservableObject {
         })
     }
 
-    func storePublicAddress() {
+    public func storePublicAddress() {
         guard !publicAddress.isEmpty else { return }
         let peer = KademliaNode.Peer(id: kademlia.id, host: publicAddress, port: publicPort)
         if let data = try? JSONEncoder().encode(peer) {
@@ -206,12 +206,12 @@ class P2PManager: ObservableObject {
         }
     }
 
-    func joinNetwork(bootstrapHost: String, port: UInt16) {
+    public func joinNetwork(bootstrapHost: String, port: UInt16) {
         kademlia.join(bootstrapHost: bootstrapHost, port: port)
         log("Joined DHT network via \(bootstrapHost):\(port)")
     }
 
-    func disconnect() {
+    public func disconnect() {
         connection?.cancel()
         connection = nil
         DispatchQueue.main.async {
