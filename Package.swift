@@ -4,16 +4,27 @@ import PackageDescription
 let package = Package(
     name: "weave",
     platforms: [
-        .macOS(.v13)
+        .iOS(.v17), .macOS(.v13)
     ],
     products: [
-        .library(name: "weave", targets: ["weave"])
+        .library(name: "weave", targets: ["weave"]),
+        .executable(name: "weaveApp", targets: ["weaveApp"])
     ],
     targets: [
         .target(
             name: "weave",
             path: "weave",
-            exclude: ["ContentView.swift", "weaveApp.swift", "Assets.xcassets"]
+            exclude: ["ContentView.swift", "weaveApp.swift", "Assets.xcassets", "weave.entitlements"]
+        ),
+        .executableTarget(
+            name: "weaveApp",
+            dependencies: ["weave"],
+            path: "weave",
+            sources: ["ContentView.swift", "weaveApp.swift"],
+            resources: [
+                .process("Assets.xcassets"),
+                .copy("weave.entitlements")
+            ]
         ),
         .testTarget(name: "weaveTests", dependencies: ["weave"], path: "weaveTests")
     ]
