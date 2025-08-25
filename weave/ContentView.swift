@@ -1,4 +1,5 @@
 import SwiftUI
+import weave
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
