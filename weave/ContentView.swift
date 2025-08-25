@@ -1,17 +1,18 @@
 import SwiftUI
-import weave
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
 
-struct ContentView: View {
+public struct ContentView: View {
     @StateObject private var manager = P2PManager(port: 9999)
     @State private var bootstrapHost: String = ""
     @State private var peerID: String = ""
     @State private var outgoing: String = ""
     @State private var showError: Bool = false
+
+    public init() {}
 
     var body: some View {
         VStack(spacing: 20) {
